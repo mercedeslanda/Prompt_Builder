@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Generador de Prompts Urbanalítica</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; max-width: 800px; }
+    select, input[type="url"] { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
+    button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
+    h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
+    label { font-weight: bold; display: block; margin-top: 10px; }
+    small { display: block; margin-bottom: 5px; color: #555; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<h1>🔧 Generador de Prompt Visual – Urbanalítica</h1>
+<p>Selecciona múltiples opciones por categoría usando <strong>Ctrl / Cmd + clic</strong>:</p>
+
+<div id="selectors"></div>
+
+<hr>
+
+<label for="sref">🎨 Estilo visual (URL para <code>--sref</code>)</label>
+<small>Referencia estética general</small>
+<input type="url" id="sref" placeholder="https://...">
+
+<label for="iw">🖼️ Imagen guía (URL para <code>--iw</code>)</label>
+<small>Imagen contextual que influye sutilmente. Se coloca al inicio + <code>--iw 2</code> al final</small>
+<input type="url" id="iw" placeholder="https://...">
+
+<label for="oref">🔁 Imagen exacta (URL para <code>--oref</code>)</label>
+<small>Referencia precisa para forma, sujeto o composición</small>
+<input type="url" id="oref" placeholder="https://...">
+
+<hr>
+
+<label for="params">⚙️ Parámetros Midjourney (elige uno o más)</label>
+<small>Control creativo, técnico y estilístico</small>
+<select id="params" multiple>
+  <option value="--ar 16:9">--ar 16:9 → Imagen horizontal</option>
+  <option value="--style raw">--style raw → Sin estilización automática</option>
+  <option value="--stylize 500">--stylize 500 → Estilización moderada</option>
+  <option value="--quality 2">--quality 2 → Alta calidad de render</option>
+  <option value="--repeat 1">--repeat 1 → Repetir generación 1 vez</option>
+  <option value="--seed 123">--seed 123 → Semilla fija para reproducibilidad</option>
+  <option value="--weird 3000">--weird 3000 → Máxima rareza visual</option>
+  <option value="--chaos 100">--chaos 100 → Máxima aleatoriedad</option>
+  <option value="--stop 100">--stop 100 → Finalizar al 100% del render</option>
+  <option value="--tile">--tile → Patrón repetible</option>
+  <option value="--hd">--hd → Alta resolución experimental</option>
+</select>
+
+<button onclick="buildPrompt()">🔁 Generar Prompt</button>
+<button onclick="copyPrompt()">📋 Copiar Prompt</button>
+
+<h2 id="output">Prompt generado aparecerá aquí…</h2>
+
+<script>
+// Variables del CSV
+const variables = {
+  "tipo_espacio_publico": [],
+  "condicion_estructural_funcional": [],
+  "sistema_de_soporte": [],
+  "entorno_geografico": [],
+  "tipo_de_cubierta": [],
+  "elementos_constructivos": [],
+  "mobiliario": [],
+  "objetos_funcionales": [],
+  "elementos_secundarios": [],
+  "punto_de_vista": [],
+  "estilo_visual": [],
+  "luz_atmosfera": []
+};
+
+// Cargar CSV
+fetch("prompt_variables_urbanalítica.csv")
+  .then(res => res.text())
+  .then(text => {
+    const rows = text.trim().split("\n");
+    const headers = rows[0].split(",").map(h => h.trim()).filter(h => h !== "");
+    headers.forEach((header, colIdx) => {
+      if (!variables[header]) return;
+      for (let i = 1; i < rows.length; i++) {
+        const cols = rows[i].split(",");
+        if (cols[colIdx]) {
+          variables[header].push(cols[colIdx].trim());
+        }
+      }
+    });
+    buildSelectors();
+  });
+
+function buildSelectors() {
+  const container = document.getElementById("selectors");
+  container.innerHTML = '';
+  for (const key in variables) {
+    const label = key.replace(/_/g, ' ');
+    const select = document.createElement("select");
+    select.id = key;
+    select.multiple = true;
+    variables[key].forEach(option => {
+      const opt = document.createElement("option");
+      opt.value = option;
+      opt.innerText = option;
+      select.appendChild(opt);
+    });
+    container.innerHTML += `<label for="${key}">${label}</label>`;
+    container.appendChild(select);
+  }
+}
+
+function getSelectedValues(id, separator = ", ") {
+  const select = document.getElementById(id);
+  return Array.from(select.selectedOptions).map(opt => opt.value).join(separator);
+}
+
+function buildPrompt() {
+  const get = id => document.getElementById(id).value;
+  const parts = [];
+
+  // Imagen guía al inicio
+  const iwImage = get("iw");
+  if (iwImage) parts.push(iwImage);
+
+  // Contenido visual
+  parts.push(`${getSelectedValues("tipo_espacio_publico")} ${getSelectedValues("condicion_estructural_funcional")} ${getSelectedValues("sistema_de_soporte")} en ${getSelectedValues("entorno_geografico")}.`);
+  parts.push(`${getSelectedValues("tipo_de_cubierta")} entre ${getSelectedValues("elementos_constructivos")}.`);
+  parts.push(`${getSelectedValues("mobiliario")}, ${getSelectedValues("objetos_funcionales")}.`);
+  parts.push(`${getSelectedValues("elementos_secundarios")}.`);
+  parts.push(`${getSelectedValues("punto_de_vista")}.`);
+  parts.push(`${getSelectedValues("estilo_visual")}.`);
+  parts.push(`${getSelectedValues("luz_atmosfera")}.`);
+
+  // Parámetros
+  let suffix = "";
+  if (get("sref")) suffix += ` --sref ${get("sref")}`;
+  if (get("oref")) suffix += ` --oref ${get("oref")}`;
+  if (iwImage) suffix += ` --iw 2`;
+
+  const selectedParams = getSelectedValues("params", " ");
+  if (selectedParams) suffix += ` ${selectedParams}`;
+
+  // Mostrar prompt final
+  const finalPrompt = parts.join(" ") + suffix;
+  document.getElementById("output").innerText = finalPrompt;
+}
+
+function copyPrompt() {
+  const text = document.getElementById("output").innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    alert("✅ Prompt copiado al portapapeles");
+  });
+}
+</script>
+
+</body>
+</html>
