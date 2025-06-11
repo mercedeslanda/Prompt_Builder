@@ -4,13 +4,38 @@
   <meta charset="UTF-8">
   <title>Generador de Prompts Urbanalítica</title>
   <style>
-    body { font-family: sans-serif; margin: 40px; max-width: 800px; }
-    select, input[type="url"] { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
-    button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
-    h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
-    label { font-weight: bold; display: block; margin-top: 10px; }
-    small { display: block; margin-bottom: 5px; color: #555; font-style: italic; }
+    body {
+      font-family: sans-serif;
+      padding: 2rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;      /* Centra horizontalmente */
+      justify-content: center;  /* Centra verticalmente si hay altura suficiente */
+      text-align: center;       /* Centra el texto */
+    }
+  
+    select, button {
+      margin: 0.5rem 0;
+      padding: 0.5rem;
+      width: 300px;
+      text-align: center;
+    }
+  
+    #output {
+      margin-top: 1rem;
+      background: #f0f0f0;
+      padding: 1rem;
+      border-radius: 8px;
+      width: fit-content;
+    }
+  
+    label {
+      margin-top: 1rem;
+      font-weight: bold;
+      display: block;
+    }
   </style>
+  
 </head>
 <body>
 
