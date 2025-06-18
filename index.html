@@ -74,28 +74,30 @@
 <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
 <script>
-const variables = {
-  "TIPO DE INTERVENCIÓN": [],
-  "DESCRIPTORES CONSTRUCTIVOS": [],
-  "BIOMA DISEÑADO": [],
-  "SITIO / CONTEXTO CLIMÁTICO": [],
-  "ELEMENTOS NATURALES DESTACADOS": []
-};
+const variables = {};
+let headersOriginales = [];
 
-fetch("prompt_variables_urbanalitica.csv")
+fetch("tu_archivo.csv")
   .then(res => res.text())
   .then(text => {
-    const rows = text.trim().split("\n");
-    const headers = rows[0].split(",").map(h => h.trim());
-    headers.forEach((header, colIdx) => {
-      if (!variables[header]) return;
-      for (let i = 1; i < rows.length; i++) {
-        const cols = rows[i].split(",");
-        if (cols[colIdx]) {
-          variables[header].push(cols[colIdx].trim());
+    const rows = text.trim().split("\n").map(r => r.split(","));
+    headersOriginales = rows[0];
+    const numCols = headersOriginales.length;
+
+    for (let i = 0; i < numCols; i++) {
+      const header = headersOriginales[i];
+      variables[header] = [];
+    }
+
+    for (let i = 1; i < rows.length; i++) {
+      for (let j = 0; j < numCols; j++) {
+        const cell = rows[i][j]?.trim();
+        if (cell && !variables[headersOriginales[j]].includes(cell)) {
+          variables[headersOriginales[j]].push(cell);
         }
       }
-    });
+    }
+
     buildSelectors();
   });
 
@@ -103,9 +105,10 @@ function buildSelectors() {
   const container = document.getElementById("selectors");
   container.innerHTML = '';
   for (const key in variables) {
-    const label = key.toLowerCase();
+    const selectId = key;
+    container.innerHTML += `<label for="${selectId}">${key}</label>`;
     const select = document.createElement("select");
-    select.id = key;
+    select.id = selectId;
     select.multiple = true;
     variables[key].forEach(option => {
       const opt = document.createElement("option");
@@ -113,7 +116,6 @@ function buildSelectors() {
       opt.innerText = option;
       select.appendChild(opt);
     });
-    container.innerHTML += `<label for="${key}">${label}</label>`;
     container.appendChild(select);
   }
 }
@@ -124,25 +126,22 @@ function getSelectedValues(id, separator = ", ") {
 }
 
 function buildPrompt() {
-  const get = id => document.getElementById(id).value;
   const parts = [];
+
+  headersOriginales.forEach(header => {
+    const val = getSelectedValues(header);
+    if (val) parts.push(val);
+  });
+
+  // Imagen guía + parámetros
+  const get = id => document.getElementById(id).value;
   const iwImage = get("iw");
-  if (iwImage) parts.push(iwImage);
-
-  parts.push(
-    getSelectedValues("TIPO DE INTERVENCIÓN") + ", " +
-    getSelectedValues("DESCRIPTORES CONSTRUCTIVOS") + ", " +
-    getSelectedValues("BIOMA DISEÑADO") + ", en " +
-    getSelectedValues("SITIO / CONTEXTO CLIMÁTICO") + "."
-  );
-
-  parts.push(getSelectedValues("ELEMENTOS NATURALES DESTACADOS") + ".");
+  if (iwImage) parts.unshift(iwImage);
 
   let suffix = "";
   if (get("sref")) suffix += ` --sref ${get("sref")}`;
   if (get("oref")) suffix += ` --oref ${get("oref")}`;
   if (iwImage) suffix += ` --iw 2`;
-
   const selectedParams = getSelectedValues("params", " ");
   if (selectedParams) suffix += ` ${selectedParams}`;
 
@@ -156,6 +155,7 @@ function copyPrompt() {
   });
 }
 </script>
+
 
 </body>
 </html>
