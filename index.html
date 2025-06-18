@@ -77,7 +77,7 @@
 const variables = {};
 let headersOriginales = [];
 
-fetch("Prompts_Urbanal_tica_Final.csv")
+fetch("Prompts_Urbanalitica_Final.csv")
   .then(res => res.text())
   .then(text => {
     const rows = text.trim().split("\n").map(r => r.split(","));
@@ -105,7 +105,7 @@ function buildSelectors() {
   const container = document.getElementById("selectors");
   container.innerHTML = '';
   headersOriginales.forEach(header => {
-    const cleanId = header.normalize("NFD").replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase();
+    const cleanId = header.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase();
     variables[header]._id = cleanId;
     container.innerHTML += `<label for="${cleanId}">${header}</label>`;
     const select = document.createElement("select");
