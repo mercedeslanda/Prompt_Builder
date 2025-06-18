@@ -13,14 +13,12 @@
       justify-content: center;
       text-align: center;
     }
-
     select, button, input {
       margin: 0.5rem 0;
       padding: 0.5rem;
       width: 300px;
       text-align: center;
     }
-
     #output {
       margin-top: 1rem;
       background: #f0f0f0;
@@ -28,7 +26,6 @@
       border-radius: 8px;
       width: fit-content;
     }
-
     label {
       margin-top: 1rem;
       font-weight: bold;
@@ -38,147 +35,139 @@
 </head>
 <body>
 
-<h1>Generador de Prompt Visual – Urbanalítica</h1>
-<p>Selecciona múltiples opciones por categoría usando <strong>Ctrl / Cmd + clic</strong>:</p>
+  <h1>Generador de Prompt Visual – Urbanalítica</h1>
+  <p>Selecciona múltiples opciones por categoría usando <strong>Ctrl / Cmd + clic</strong>:</p>
+  <div id="selectors"></div>
+  <hr>
+  <label for="sref">🎨 Estilo visual (URL para <code>--sref</code>)</label>
+  <input type="url" id="sref" placeholder="https://...">
+  <label for="iw">🖼️ Imagen guía (URL para <code>--iw</code>)</label>
+  <input type="url" id="iw" placeholder="https://...">
+  <label for="oref">🔁 Imagen exacta (URL para <code>--oref</code>)</label>
+  <input type="url" id="oref" placeholder="https://...">
+  <hr>
+  <label for="params">⚙️ Parámetros Midjourney</label>
+  <select id="params" multiple>
+    <option value="--ar 16:9">--ar 16:9 → Imagen horizontal</option>
+    <option value="--ar 9:16">--ar 9:16 → Imagen vertical</option>
+    <option value="--style raw">--style raw → Sin estilización automática</option>
+    <option value="--s 550">--s 550 → Stylize bajo</option>
+    <option value="--s 10">--s 10 → Stylize mínimo</option>
+    <option value="--s 1000">--s 1000 → Stylize alto</option>
+    <option value="--weird 0">--weird 0 → Sin rareza</option>
+    <option value="--chaos 50">--chaos 50 → Aleatoriedad media</option>
+  </select>
+  <button onclick="buildPrompt()">🔁 Generar Prompt</button>
+  <button onclick="copyPrompt()">📋 Copiar Prompt</button>
+  <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
-<div id="selectors"></div>
+  <script>
+    // 1) Variables con los encabezados esperados
+    const variables = {
+      "MEDIO": [],
+      "TIPO DE VISTA": [],
+      "TIPO DE INTERVENCIÓN": [],
+      "DESCRIPTORES CONSTRUCTIVOS": [],
+      "BIOMA DISEÑADO": [],
+      "SITIO / CONTEXTO CLIMÁTICO": [],
+      "ELEMENTOS NATURALES DESTACADOS": [],
+      "SEÑALES DE USO HUMANO": [],
+      "FAUNA URBANA": [],
+      "TIPO DE LUZ": []
+    };
 
-<hr>
-
-<label for="sref">🎨 Estilo visual (URL para <code>--sref</code>)</label>
-<input type="url" id="sref" placeholder="https://...">
-
-<label for="iw">🖼️ Imagen guía (URL para <code>--iw</code>)</label>
-<input type="url" id="iw" placeholder="https://...">
-
-<label for="oref">🔁 Imagen exacta (URL para <code>--oref</code>)</label>
-<input type="url" id="oref" placeholder="https://...">
-
-<hr>
-
-<label for="params">⚙️ Parámetros Midjourney</label>
-<select id="params" multiple>
-  <option value="--ar 16:9">--ar 16:9 → Imagen horizontal</option>
-  <option value="--ar 9:16">--ar 9:16 → Imagen vertical</option>
-  <option value="--style raw">--style raw → Sin estilización automática</option>
-  <option value="--s 550">--s 550 → Stylize bajo</option>
-  <option value="--s 10">--s 10 → Stylize mínimo</option>
-  <option value="--s 1000">--s 1000 → Stylize alto</option>
-  <option value="--weird 0">--weird 0 → Sin rareza</option>
-  <option value="--chaos 50">--chaos 50 → Aleatoriedad media</option>
-</select>
-
-<button onclick="buildPrompt()">🔁 Generar Prompt</button>
-<button onclick="copyPrompt()">📋 Copiar Prompt</button>
-
-<h2 id="output">Prompt generado aparecerá aquí…</h2>
-
-<script>
-  // Variables esperadas según encabezados del CSV
-  const variables = {
-    "MEDIO": [],
-    "TIPO DE VISTA": [],
-    "TIPO DE INTERVENCIÓN": [],
-    "DESCRIPTORES CONSTRUCTIVOS": [],
-    "BIOMA DISEÑADO": [],
-    "SITIO / CONTEXTO CLIMÁTICO": [],
-    "ELEMENTOS NATURALES DESTACADOS": [],
-    "SEÑALES DE USO HUMANO": [],
-    "FAUNA URBANA": [],
-    "TIPO DE LUZ": []
-  };
-
-  // Función para normalizar texto a un id válido (quita tildes y caracteres raros)
-  function normalizeId(text) {
-    return text
-      .normalize('NFD')                   // separa caracteres y tildes
-      .replace(/[\u0300-\u036f]/g, '')    // elimina las tildes
-      .replace(/[^a-zA-Z0-9]+/g, '_')     // todo lo que no sea letra/número → _
-      .replace(/^_|_$/g, '')              // quita _ al inicio o final
-      .toLowerCase();
-  }
-
-  // Carga del CSV
-  fetch("Prompts_Urbanal_tica_Final.csv")
-    .then(res => res.text())
-    .then(text => {
-      const rows = text.trim().split("\n").map(r => r.split(","));
-      const headers = rows[0];
-      headers.forEach((header, colIdx) => {
-        if (!variables[header]) return;
-        for (let i = 1; i < rows.length; i++) {
-          const value = rows[i][colIdx];
-          if (value && !variables[header].includes(value)) {
-            variables[header].push(value);
-          }
-        }
-      });
-      buildSelectors();
-  });
-
-  // Genera los <select> dinámicamente
-  function buildSelectors() {
-    const container = document.getElementById("selectors");
-    container.innerHTML = '';
-    for (const key in variables) {
-      const id = normalizeId(key);
-      container.innerHTML += `<label for="${id}">${key}</label>`;
-      const select = document.createElement("select");
-      select.id = id;
-      select.multiple = true;
-      variables[key].forEach(option => {
-        const opt = document.createElement("option");
-        opt.value = option;
-        opt.innerText = option;
-        select.appendChild(opt);
-      });
-      container.appendChild(select);
+    // 2) Normaliza un texto a un id válido (quita tildes, espacios y símbolos)
+    function normalizeId(text) {
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_|_$/g, '')
+        .toLowerCase();
     }
-  }
 
-  // Lee valores seleccionados
-  function getSelectedValues(id, separator = ", ") {
-    const select = document.getElementById(id);
-    return Array.from(select.selectedOptions).map(opt => opt.value).join(separator);
-  }
+    // 3) Carga el CSV (nombre y ruta exacta)
+    fetch("Prompts_Urbanal_tica_Final.csv")
+      .then(res => {
+        if (!res.ok) throw new Error("No se encontró el CSV: " + res.status);
+        return res.text();
+      })
+      .then(text => {
+        const rows = text.trim().split("\n").map(r => r.split(","));
+        const headers = rows[0];
+        headers.forEach((header, colIdx) => {
+          if (!variables[header]) return;
+          for (let i = 1; i < rows.length; i++) {
+            const value = rows[i][colIdx].trim();
+            if (value && !variables[header].includes(value)) {
+              variables[header].push(value);
+            }
+          }
+        });
+        buildSelectors();
+      })
+      .catch(err => {
+        console.error(err);
+        alert("❌ Error al cargar el CSV. Revisa consola.");
+      });
 
-  // Construye el prompt
-  function buildPrompt() {
-    // Mapeamos campos según las mismas keys de 'variables'
-    const campos = Object.keys(variables).map(key => normalizeId(key));
+    // 4) Genera los <select> dinámicamente
+    function buildSelectors() {
+      const container = document.getElementById("selectors");
+      container.innerHTML = '';
+      for (const key in variables) {
+        const id = normalizeId(key);
+        container.innerHTML += `<label for="${id}">${key}</label>`;
+        const select = document.createElement("select");
+        select.id = id;
+        select.multiple = true;
+        variables[key].forEach(option => {
+          const opt = document.createElement("option");
+          opt.value = option;
+          opt.innerText = option;
+          select.appendChild(opt);
+        });
+        container.appendChild(select);
+      }
+    }
 
-    const parts = campos
-      .map(id => getSelectedValues(id))
-      .filter(Boolean);
+    // 5) Helper para leer valores seleccionados
+    function getSelectedValues(id, separator = ", ") {
+      const sel = document.getElementById(id);
+      if (!sel) return "";
+      return Array.from(sel.selectedOptions).map(o => o.value).join(separator);
+    }
 
-    // Imagen guía y referencias
-    const sref = document.getElementById("sref").value;
-    const iw   = document.getElementById("iw").value;
-    const oref = document.getElementById("oref").value;
+    // 6) Construye el prompt final
+    function buildPrompt() {
+      const campos = Object.keys(variables).map(key => normalizeId(key));
+      const parts = campos.map(id => getSelectedValues(id)).filter(Boolean);
 
-    if (iw) parts.unshift(iw);
+      const sref = document.getElementById("sref").value.trim();
+      const iw   = document.getElementById("iw").value.trim();
+      const oref = document.getElementById("oref").value.trim();
 
-    let suffix = "";
-    if (sref)  suffix += ` --sref ${sref}`;
-    if (oref)  suffix += ` --oref ${oref}`;
-    if (iw)    suffix += ` --iw 2`;
+      if (iw) parts.unshift(iw);
 
-    // Parámetros MidJourney
-    const params = getSelectedValues("params", " ");
-    if (params) suffix += ` ${params}`;
+      let suffix = "";
+      if (sref)  suffix += ` --sref ${sref}`;
+      if (oref)  suffix += ` --oref ${oref}`;
+      if (iw)    suffix += ` --iw 2`;
 
-    document.getElementById("output").innerText = parts.join(" ") + suffix;
-  }
+      const params = getSelectedValues("params", " ");
+      if (params) suffix += ` ${params}`;
 
-  // Copiar al portapapeles
-  function copyPrompt() {
-    const text = document.getElementById("output").innerText;
-    navigator.clipboard.writeText(text).then(() => {
-      alert("✅ Prompt copiado al portapapeles");
-    });
-  }
-</script>
+      document.getElementById("output").innerText = parts.join(" ") + suffix;
+    }
 
+    // 7) Copiar al portapapeles
+    function copyPrompt() {
+      const text = document.getElementById("output").innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("✅ Prompt copiado al portapapeles");
+      });
+    }
+  </script>
 
 </body>
 </html>
