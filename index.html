@@ -38,7 +38,7 @@
 </head>
 <body>
 
-<h1>🔧 Generador de Prompt Visual – Urbanalítica</h1>
+<h1>Generador de Prompt Visual – Urbanalítica</h1>
 <p>Selecciona múltiples opciones por categoría usando <strong>Ctrl / Cmd + clic</strong>:</p>
 
 <div id="selectors"></div>
@@ -77,7 +77,7 @@
 const variables = {};
 let headersOriginales = [];
 
-fetch("tu_archivo.csv")
+fetch("prompts_urbanalitica_html_ready.csv")
   .then(res => res.text())
   .then(text => {
     const rows = text.trim().split("\n").map(r => r.split(","));
@@ -104,20 +104,23 @@ fetch("tu_archivo.csv")
 function buildSelectors() {
   const container = document.getElementById("selectors");
   container.innerHTML = '';
-  for (const key in variables) {
-    const selectId = key;
-    container.innerHTML += `<label for="${selectId}">${key}</label>`;
+  headersOriginales.forEach(header => {
+    const cleanId = header.normalize("NFD").replace(/[^\w\s]/g, "").replace(/\s+/g, "_").toLowerCase();
+    variables[header]._id = cleanId;
+    container.innerHTML += `<label for="${cleanId}">${header}</label>`;
     const select = document.createElement("select");
-    select.id = selectId;
+    select.id = cleanId;
     select.multiple = true;
-    variables[key].forEach(option => {
-      const opt = document.createElement("option");
-      opt.value = option;
-      opt.innerText = option;
-      select.appendChild(opt);
+    variables[header].forEach(option => {
+      if (typeof option === "string") {
+        const opt = document.createElement("option");
+        opt.value = option;
+        opt.innerText = option;
+        select.appendChild(opt);
+      }
     });
     container.appendChild(select);
-  }
+  });
 }
 
 function getSelectedValues(id, separator = ", ") {
@@ -129,11 +132,11 @@ function buildPrompt() {
   const parts = [];
 
   headersOriginales.forEach(header => {
-    const val = getSelectedValues(header);
+    const id = variables[header]._id;
+    const val = getSelectedValues(id);
     if (val) parts.push(val);
   });
 
-  // Imagen guía + parámetros
   const get = id => document.getElementById(id).value;
   const iwImage = get("iw");
   if (iwImage) parts.unshift(iwImage);
@@ -155,7 +158,6 @@ function copyPrompt() {
   });
 }
 </script>
-
 
 </body>
 </html>
