@@ -35,14 +35,14 @@
 
   <label for="params">⚙️ Parámetros Midjourney</label>
   <select id="params" multiple>
-    <option value="--ar 16:9 (aspect ratio horizontal)">--ar 16:9</option>
-    <option value="--style raw (no aporta nada extra)">--style raw</option>
-    <option value="--stylize 500 (estilización media">--stylize 550</option>
-    <option value="--repeat 1">--repeat 1</option>
-    <option value="--seed 123">--seed 123</option>
-    <option value="--weird 1000">--weird 1000</option>
-    <option value="--chaos 50">--chaos 50</option>
-    <option value="--tile (para imágenes mosaico">--tile</option>
+    <option value="--ar 16:9">--ar 16:9 (aspect ratio horizontal)</option>
+    <option value="--style raw">--style raw (sin extras)</option>
+    <option value="--stylize 500">--stylize 550 (estilización media)</option>
+    <option value="--repeat 1">--repeat 1 (cambia a 2 para ahorrar tiempo)</option>
+    <option value="--seed 123">--seed 123 (para series consistentes)</option>
+    <option value="--weird 1000">--weird 1000 (ajusta a 0 para una imagen muy seria)</option>
+    <option value="--chaos 50">--chaos 50 (que tanto varian tus cuatro imágenes por iteración?)</option>
+    <option value="--tile">--tile (para imágenes mosaico) </option>
   </select>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
