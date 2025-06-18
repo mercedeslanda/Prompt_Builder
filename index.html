@@ -55,11 +55,10 @@
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
   <button onclick="copyPrompt()">📋 Copiar Prompt</button>
-
   <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
   <script>
-    // Normaliza texto a un id válido
+    // convierte texto a un id limpio
     function normalizeId(text) {
       return text
         .normalize('NFD')
@@ -69,101 +68,88 @@
         .toLowerCase();
     }
 
-    // Genera los <select> a partir de un objeto variables
+    // genera los selectores dinámicamente
     function buildSelectors(variables) {
-      const container = document.getElementById("selectors");
-      container.innerHTML = '';
-      Object.entries(variables).forEach(([header, options]) => {
-        const id = normalizeId(header);
-        container.innerHTML += `<label for="${id}">${header}</label>`;
+      const c = document.getElementById("selectors");
+      c.innerHTML = '';
+      Object.entries(variables).forEach(([hdr, opts]) => {
+        const id = normalizeId(hdr);
+        c.innerHTML += `<label for="${id}">${hdr}</label>`;
         const sel = document.createElement("select");
-        sel.id = id;
-        sel.multiple = true;
-        options.forEach(val => {
-          const opt = document.createElement("option");
-          opt.value = val;
-          opt.innerText = val;
-          sel.appendChild(opt);
+        sel.id = id; sel.multiple = true;
+        opts.forEach(v => {
+          const o = document.createElement("option");
+          o.value = v; o.innerText = v;
+          sel.appendChild(o);
         });
-        container.appendChild(sel);
+        c.appendChild(sel);
       });
     }
 
-    // Lee valores seleccionados
+    // lee valores seleccionados
     function getSelected(id, sep = ", ") {
-      const sel = document.getElementById(id);
-      return sel
-        ? Array.from(sel.selectedOptions).map(o => o.value).join(sep)
-        : '';
+      const s = document.getElementById(id);
+      return s ? Array.from(s.selectedOptions).map(o => o.value).join(sep) : '';
     }
 
-    // Construye el prompt final
+    // arma el prompt
     function buildPrompt() {
       const parts = [];
-
-      // Imagen guía al inicio
       const iw = document.getElementById("iw").value.trim();
       if (iw) parts.push(iw);
 
-      // Recorre dinámicamente los <select> dentro de #selectors
       document.querySelectorAll("#selectors select").forEach(sel => {
-        const vals = getSelected(sel.id);
-        if (vals) parts.push(vals);
+        const v = getSelected(sel.id);
+        if (v) parts.push(v);
       });
 
-      // Sufijos: sref, oref, iw y params
-      let suffix = '';
+      let suf = '';
       const sref = document.getElementById("sref").value.trim();
       const oref = document.getElementById("oref").value.trim();
-      if (sref)  suffix += ` --sref ${sref}`;
-      if (oref)  suffix += ` --oref ${oref}`;
-      if (iw)    suffix += ` --iw 2`;
+      if (sref) suf += ` --sref ${sref}`;
+      if (oref) suf += ` --oref ${oref}`;
+      if (iw)   suf += ` --iw 2`;
 
-      const params = getSelected("params", " ");
-      if (params) suffix += ` ${params}`;
+      const prm = getSelected("params", " ");
+      if (prm) suf += ` ${prm}`;
 
-      document.getElementById("output").innerText = parts.join(' ') + suffix;
+      document.getElementById("output").innerText = parts.join(' ') + suf;
     }
 
-    // Copiar prompt al portapapeles
     function copyPrompt() {
-      const text = document.getElementById("output").innerText;
-      navigator.clipboard.writeText(text)
-        .then(() => alert("✅ Prompt copiado al portapapeles"))
-        .catch(() => alert("❌ Error al copiar"));
+      const t = document.getElementById("output").innerText;
+      navigator.clipboard.writeText(t)
+        .then(_=>alert("✅ Copiado"))
+        .catch(_=>alert("❌ Error"));
     }
 
-    // Al cargar, parsea el CSV con PapaParse
+    // parsea el CSV y construye todo
     Papa.parse("Prompts_Urbanal_tica_Final.csv", {
       download: true,
       header: true,
       skipEmptyLines: true,
+      transformHeader: h => h.replace(/"/g,'').trim(),
+      transform: v => v.replace(/"/g,'').trim(),
       complete: ({ data }) => {
-        // data = [ { header1: "valor", header2: "otro", ... }, ... ]
-        const variables = {};
-        if (data.length === 0) {
-          alert("⚠️ CSV vacío o malformado");
-          return;
+        const vars = {};
+        if (!data.length) {
+          alert("⚠️ CSV vacío o malformado"); return;
         }
-        // Inicializa arrays
-        Object.keys(data[0]).forEach(h => variables[h.trim()] = []);
-        // Recorre cada fila, elimina comillas y acumula opciones únicas
-        data.forEach(row => {
-          Object.entries(row).forEach(([h, v]) => {
-            const clean = v.replace(/"/g, '').trim();
-            if (clean && !variables[h].includes(clean)) {
-              variables[h].push(clean);
-            }
+        // crea un array vacío para cada header
+        Object.keys(data[0]).forEach(h=> vars[h]=[]);
+        // agrupa valores únicos
+        data.forEach(row=>{
+          Object.entries(row).forEach(([h,v])=>{
+            if (v && !vars[h].includes(v)) vars[h].push(v);
           });
         });
-        buildSelectors(variables);
+        buildSelectors(vars);
       },
-      error: err => {
-        console.error(err);
-        alert("❌ Error cargando CSV: revisa consola");
+      error: e => {
+        console.error(e);
+        alert("❌ No se pudo cargar CSV");
       }
     });
   </script>
-
 </body>
 </html>
