@@ -21,6 +21,21 @@
 
     <label for="iw">🖼️ Imagen guía.(<code>ajusta con --iw 100</code>)</label>
   <input type="url" id="iw" placeholder="https://...">
+  <!-- aquí va el preview -->
+<img id="preview_iw" style="max-width:200px; display:block; margin-bottom:12px;" />
+
+  <script>
+  document.getElementById('iw').addEventListener('input', function() {
+    const url = this.value.trim();
+    const img = document.getElementById('preview_iw');
+    if (url) {
+      img.src = url;
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+  });
+</script>
   
   <div id="selectors"></div>
 
@@ -28,9 +43,29 @@
 
   <label for="sref">🎨 Estilo visual. (<code>--sref, ajusta con --sw 100</code>)</label>
   <input type="url" id="sref" placeholder="https://...">
+  <!-- aquí va el preview -->
+<img id="preview_iw" style="max-width:200px; display:block; margin-bottom:12px;" />
 
   <label for="oref">🎨 Objeto y Estilo exactos. (<code>--oref, ajusta con --ow 100</code>)</label>
   <input type="url" id="oref" placeholder="https://...">
+  <!-- aquí va el preview -->
+<img id="preview_iw" style="max-width:200px; display:block; margin-bottom:12px;" />
+
+  <script>
+  ['sref','oref'].forEach(id => {
+    const inp = document.getElementById(id);
+    const img = document.getElementById('preview_' + id);
+    inp.addEventListener('input', () => {
+      const url = inp.value.trim();
+      if (url) {
+        img.src = url;
+        img.style.display = 'block';
+      } else {
+        img.style.display = 'none';
+      }
+    });
+  });
+</script>
 
   <label for="p">🎨 Moodboards. (<code>--p</code>)</label>
   <input type="code" id="moodboard" placeholder="--p d19hjfk">
