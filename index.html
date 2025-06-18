@@ -77,7 +77,7 @@
 const variables = {};
 let headersOriginales = [];
 
-fetch("prompts_urbanalitica_html_ready.csv")
+fetch("Prompts_Urbanal_tica_Final.csv")
   .then(res => res.text())
   .then(text => {
     const rows = text.trim().split("\n").map(r => r.split(","));
