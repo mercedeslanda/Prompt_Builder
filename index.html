@@ -74,90 +74,111 @@
 <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
 <script>
-const variables = {
-  "MEDIO": [],
-  "TIPO DE VISTA": [],
-  "TIPO DE INTERVENCIÓN": [],
-  "DESCRIPTORES CONSTRUCTIVOS": [],
-  "BIOMA DISEÑADO": [],
-  "SITIO / CONTEXTO CLIMÁTICO": [],
-  "ELEMENTOS NATURALES DESTACADOS": [],
-  "SEÑALES DE USO HUMANO": [],
-  "FAUNA URBANA": [],
-  "TIPO DE LUZ": []
-};
+  // Variables esperadas según encabezados del CSV
+  const variables = {
+    "MEDIO": [],
+    "TIPO DE VISTA": [],
+    "TIPO DE INTERVENCIÓN": [],
+    "DESCRIPTORES CONSTRUCTIVOS": [],
+    "BIOMA DISEÑADO": [],
+    "SITIO / CONTEXTO CLIMÁTICO": [],
+    "ELEMENTOS NATURALES DESTACADOS": [],
+    "SEÑALES DE USO HUMANO": [],
+    "FAUNA URBANA": [],
+    "TIPO DE LUZ": []
+  };
 
-fetch("Prompts_Urbanal_tica_Final.csv")
-  .then(res => res.text())
-  .then(text => {
-    const rows = text.trim().split("\n").map(r => r.split(","));
-    const headers = rows[0];
-    headers.forEach((header, colIdx) => {
-      if (!variables[header]) return;
-      for (let i = 1; i < rows.length; i++) {
-        const value = rows[i][colIdx];
-        if (value && !variables[header].includes(value)) {
-          variables[header].push(value);
-        }
-      }
-    });
-    buildSelectors();
-  });
-
-function buildSelectors() {
-  const container = document.getElementById("selectors");
-  container.innerHTML = '';
-  for (const key in variables) {
-    const id = key.toLowerCase().replace(/\s+/g, "_").replace(/[ÁÉÍÓÚÜÑ]/g, c => ({Á:'A',É:'E',Í:'I',Ó:'O',Ú:'U',Ü:'U',Ñ:'N'}[c])).toLowerCase();
-    container.innerHTML += `<label for="${id}">${key}</label>`;
-    const select = document.createElement("select");
-    select.id = id;
-    select.multiple = true;
-    variables[key].forEach(option => {
-      const opt = document.createElement("option");
-      opt.value = option;
-      opt.innerText = option;
-      select.appendChild(opt);
-    });
-    container.appendChild(select);
+  // Función para normalizar texto a un id válido (quita tildes y caracteres raros)
+  function normalizeId(text) {
+    return text
+      .normalize('NFD')                   // separa caracteres y tildes
+      .replace(/[\u0300-\u036f]/g, '')    // elimina las tildes
+      .replace(/[^a-zA-Z0-9]+/g, '_')     // todo lo que no sea letra/número → _
+      .replace(/^_|_$/g, '')              // quita _ al inicio o final
+      .toLowerCase();
   }
-}
 
-function getSelectedValues(id, separator = ", ") {
-  const select = document.getElementById(id);
-  return Array.from(select.selectedOptions).map(opt => opt.value).join(separator);
-}
-
-function buildPrompt() {
-  const campos = [
-    "medio", "tipo_de_vista", "tipo_de_intervencion", "descriptores_constructivos",
-    "bioma_disenado", "sitio___contexto_climatico", "elementos_naturales_destacados",
-    "senales_de_uso_humano", "fauna_urbana", "tipo_de_luz"
-  ];
-
-  const parts = campos.map(id => getSelectedValues(id)).filter(Boolean);
-
-  const get = id => document.getElementById(id).value;
-  const iwImage = get("iw");
-  if (iwImage) parts.unshift(iwImage);
-
-  let suffix = "";
-  if (get("sref")) suffix += ` --sref ${get("sref")}`;
-  if (get("oref")) suffix += ` --oref ${get("oref")}`;
-  if (iwImage) suffix += ` --iw 2`;
-  const selectedParams = getSelectedValues("params", " ");
-  if (selectedParams) suffix += ` ${selectedParams}`;
-
-  document.getElementById("output").innerText = parts.join(" ") + suffix;
-}
-
-function copyPrompt() {
-  const text = document.getElementById("output").innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    alert("✅ Prompt copiado al portapapeles");
+  // Carga del CSV
+  fetch("Prompts_Urbanal_tica_Final.csv")
+    .then(res => res.text())
+    .then(text => {
+      const rows = text.trim().split("\n").map(r => r.split(","));
+      const headers = rows[0];
+      headers.forEach((header, colIdx) => {
+        if (!variables[header]) return;
+        for (let i = 1; i < rows.length; i++) {
+          const value = rows[i][colIdx];
+          if (value && !variables[header].includes(value)) {
+            variables[header].push(value);
+          }
+        }
+      });
+      buildSelectors();
   });
-}
+
+  // Genera los <select> dinámicamente
+  function buildSelectors() {
+    const container = document.getElementById("selectors");
+    container.innerHTML = '';
+    for (const key in variables) {
+      const id = normalizeId(key);
+      container.innerHTML += `<label for="${id}">${key}</label>`;
+      const select = document.createElement("select");
+      select.id = id;
+      select.multiple = true;
+      variables[key].forEach(option => {
+        const opt = document.createElement("option");
+        opt.value = option;
+        opt.innerText = option;
+        select.appendChild(opt);
+      });
+      container.appendChild(select);
+    }
+  }
+
+  // Lee valores seleccionados
+  function getSelectedValues(id, separator = ", ") {
+    const select = document.getElementById(id);
+    return Array.from(select.selectedOptions).map(opt => opt.value).join(separator);
+  }
+
+  // Construye el prompt
+  function buildPrompt() {
+    // Mapeamos campos según las mismas keys de 'variables'
+    const campos = Object.keys(variables).map(key => normalizeId(key));
+
+    const parts = campos
+      .map(id => getSelectedValues(id))
+      .filter(Boolean);
+
+    // Imagen guía y referencias
+    const sref = document.getElementById("sref").value;
+    const iw   = document.getElementById("iw").value;
+    const oref = document.getElementById("oref").value;
+
+    if (iw) parts.unshift(iw);
+
+    let suffix = "";
+    if (sref)  suffix += ` --sref ${sref}`;
+    if (oref)  suffix += ` --oref ${oref}`;
+    if (iw)    suffix += ` --iw 2`;
+
+    // Parámetros MidJourney
+    const params = getSelectedValues("params", " ");
+    if (params) suffix += ` ${params}`;
+
+    document.getElementById("output").innerText = parts.join(" ") + suffix;
+  }
+
+  // Copiar al portapapeles
+  function copyPrompt() {
+    const text = document.getElementById("output").innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      alert("✅ Prompt copiado al portapapeles");
+    });
+  }
 </script>
+
 
 </body>
 </html>
