@@ -5,15 +5,9 @@
   <title>Generador de Prompts Urbanalítica</title>
   <style>
     body { font-family: sans-serif; margin: 40px; max-width: 800px; }
-    select, input[type="text"] { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
+    select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
     button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
-    h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
-    label { font-weight: bold; display: block; margin-top: 10px; }
-    .preview-container img {
-      max-width: 120px;
-      margin: 4px;
-      display: inline-block;
-    }
+    .preview-container img { max-width: 120px; margin: 4px; display: inline-block; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -21,178 +15,99 @@
 
   <h1>Imaginar el Futuro del Territorio a 25 años</h1>
   <p>Generador de Prompts __ URBANALÍTICA</p>
-  <p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
 
   <label for="iw">🖼️ Imagen guía. (<code>ajusta con --iw 100</code>)</label>
-  <input type="text" id="iw" placeholder="Pega hasta varios enlaces separados por espacio o coma">
+  <input type="text" id="iw" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_iw" class="preview-container"></div>
-
-  <script>
-    // Previsualiza múltiples imágenes split por espacio o coma
-    ['iw'].forEach(id => {
-      const inp = document.getElementById(id);
-      const container = document.getElementById('preview_' + id);
-      inp.addEventListener('input', () => {
-        const urls = inp.value
-          .split(/[\s,]+/)
-          .map(u => u.trim())
-          .filter(u => u);
-        container.innerHTML = '';
-        urls.forEach(u => {
-          const img = document.createElement('img');
-          img.src = u;
-          img.onerror = () => img.remove();
-          container.appendChild(img);
-        });
-      });
-    });
-  </script>
 
   <div id="selectors"></div>
   <hr>
 
-  <label for="sref">🎨 Estilo visual. (<code>--sref, ajusta con --sw 100</code>)</label>
-  <input type="text" id="sref" placeholder="Pega hasta varios enlaces separados por espacio o coma">
+  <label for="sref">🎨 Estilo visual. (<code>--sref</code>)</label>
+  <input type="text" id="sref" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_sref" class="preview-container"></div>
 
-  <label for="oref">🎨 Objeto y Estilo exactos. (<code>--oref, ajusta con --ow 100</code>)</label>
-  <input type="text" id="oref" placeholder="Pega hasta varios enlaces separados por espacio o coma">
+  <label for="oref">🎨 Objeto y estilo exactos. (<code>--oref</code>)</label>
+  <input type="text" id="oref" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_oref" class="preview-container"></div>
 
-  <script>
-    ['sref','oref'].forEach(id => {
-      const inp = document.getElementById(id);
-      const container = document.getElementById('preview_' + id);
-      inp.addEventListener('input', () => {
-        const urls = inp.value
-          .split(/[\s,]+/)
-          .map(u => u.trim())
-          .filter(u => u);
-        container.innerHTML = '';
-        urls.forEach(u => {
-          const img = document.createElement('img');
-          img.src = u;
-          img.onerror = () => img.remove();
-          container.appendChild(img);
-        });
-      });
-    });
-  </script>
-
-  <label for="p">🎨 Moodboards. (<code>--p</code>)</label>
+  <label for="moodboard">🎨 Moodboards. (<code>--p</code>)</label>
   <input type="text" id="moodboard" placeholder="--p d19hjfk">
 
   <hr>
 
   <label for="params">⚙️ Parámetros Midjourney</label>
   <select id="params" multiple>
-    <option value="--ar 16:9">--ar 16:9 (aspect ratio horizontal)</option>
-    <option value="--style raw">--style raw (sin extras)</option>
-    <option value="--stylize 500">--stylize 550 (estilización media)</option>
-    <option value="--repeat 1">--repeat 1 (cambia a 2 para ahorrar tiempo)</option>
-    <option value="--seed 123">--seed 123 (para series consistentes)</option>
-    <option value="--weird 1000">--weird 1000 (ajusta a 0 para una imagen muy seria)</option>
-    <option value="--chaos 50">--chaos 50 (que tanto varían tus cuatro imágenes por iteración?)</option>
-    <option value="--tile">--tile (para imágenes mosaico)</option>
+    <option value="--ar 16:9">--ar 16:9</option>
+    <option value="--style raw">--style raw</option>
+    <option value="--stylize 500">--stylize 550</option>
+    <option value="--repeat 1">--repeat 1</option>
+    <option value="--seed 123">--seed 123</option>
+    <option value="--weird 1000">--weird 1000</option>
+    <option value="--chaos 50">--chaos 50</option>
+    <option value="--tile">--tile</option>
   </select>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
   <button onclick="copyPrompt()">📋 Copiar Prompt</button>
 
-  <h2 id="output">Prompt generado aparecerá aquí…</h2>
+  <label for="output">Prompt generado (editable):</label>
+  <textarea id="output" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
     function normalizeId(text) {
-      return text
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
-        .replace(/^_|_$/g, '')
-        .toLowerCase();
+      return text.normalize('NFD').replace(/[̀-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
     }
 
     function buildSelectors(vars) {
-      const c = document.getElementById("selectors");
-      c.innerHTML = '';
+      const c = document.getElementById('selectors'); c.innerHTML = '';
       Object.entries(vars).forEach(([hdr, opts]) => {
         const id = normalizeId(hdr);
         c.innerHTML += `<label for="${id}">${hdr}</label>`;
-        const sel = document.createElement("select");
-        sel.id = id; sel.multiple = true;
-        opts.forEach(v => {
-          const o = document.createElement("option");
-          o.value = v; o.innerText = v;
-          sel.appendChild(o);
-        });
+        const sel = document.createElement('select'); sel.id = id; sel.multiple = true;
+        opts.forEach(v => { const o = document.createElement('option'); o.value = v; o.innerText = v; sel.appendChild(o); });
         c.appendChild(sel);
       });
     }
 
-    function getSelected(id, sep = ", ") {
+    function getSelected(id, sep = ', ') {
       const s = document.getElementById(id);
       return s ? Array.from(s.selectedOptions).map(o => o.value).join(sep) : '';
     }
 
+    function setupPreview(id) {
+      const inp = document.getElementById(id);
+      const container = document.getElementById('preview_' + id);
+      inp.addEventListener('input', () => {
+        const urls = inp.value.split(/[\s,]+/).map(u => u.trim()).filter(u => u);
+        container.innerHTML = '';
+        urls.forEach(u => { const img = document.createElement('img'); img.src = u; img.onerror = () => img.remove(); container.appendChild(img); });
+      });
+    }
+
     function buildPrompt() {
       const parts = [];
-      const iw = document.getElementById("iw").value.trim();
-      if (iw) parts.push(iw);
-
-      document.querySelectorAll("#selectors select").forEach(sel => {
+      ['iw','sref','oref'].forEach(id => {
+        const txt = document.getElementById(id).value.trim();
+        if (txt) txt.split(/[\s,]+/).filter(u => u).forEach(u => parts.push(u));
+      });
+      document.querySelectorAll('#selectors select').forEach(sel => {
         const v = getSelected(sel.id);
         if (v) parts.push(v);
       });
-
-      let suf = '';
-      const sref = document.getElementById("sref").value.trim();
-      const oref = document.getElementById("oref").value.trim();
-      if (sref) suf += ` --sref ${sref} --sw 50`;
-      if (oref) suf += ` --oref ${oref} --ow 60`;
-      if (iw)   suf += ` --iw 1`;
-
-      const mood = document.getElementById("moodboard").value.trim();
-      if (mood) suf += ` ${mood}`;
-
-      const prm = getSelected("params", " ");
-      if (prm) suf += ` ${prm}`;
-
-      document.getElementById("output").innerText = parts.join(' ') + suf;
+      const mood = document.getElementById('moodboard').value.trim(); if (mood) parts.push(mood);
+      const prm = getSelected('params', ' '); if (prm) parts.push(prm);
+      document.getElementById('output').value = parts.join(' ') + '';
     }
 
     function copyPrompt() {
-      const t = document.getElementById("output").innerText;
-      navigator.clipboard.writeText(t)
-        .then(() => alert("✅ Copiado"))
-        .catch(() => alert("❌ Error al copiar"));
+      const t = document.getElementById('output').value;
+      navigator.clipboard.writeText(t).then(() => alert('✅ Copiado')).catch(() => alert('❌ Error'));
     }
 
-    Papa.parse("https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv", {
-      download: true,
-      delimiter: ',',
-      quoteChar: '"',
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: h => h.replace(/"/g,'').trim(),
-      transform: v => v.replace(/"/g,'').trim(),
-      complete: ({ data }) => {
-        if (data.length === 0) {
-          alert("⚠️ CSV vacío o malformado");
-          return;
-        }
-        const vars = {};
-        Object.keys(data[0]).forEach(h => vars[h] = []);
-        data.forEach(row => {
-          Object.entries(row).forEach(([h, v]) => {
-            if (v && !vars[h].includes(v)) vars[h].push(v);
-          });
-        });
-        buildSelectors(vars);
-      },
-      error: err => {
-        console.error(err);
-        alert("❌ Error cargando CSV (revisa consola)");
-      }
-    });
+    ['iw','sref','oref'].forEach(setupPreview);
+
+    Papa.parse('https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv',{download:true,header:true,skipEmptyLines:true,transformHeader:h=>h.replace(/"/g,'').trim(),transform:v=>v.replace(/"/g,'').trim(),complete:({data})=>{if(!data.length)return alert('CSV malformado');const vars={};Object.keys(data[0]).forEach(h=>vars[h]=[]);data.forEach(row=>Object.entries(row).forEach(([h,v])=>{if(v&&!vars[h].includes(v))vars[h].push(v);}));buildSelectors(vars);},error:err=>{console.error(err);alert('Error cargando CSV');}});
   </script>
 </body>
 </html>
