@@ -74,14 +74,20 @@
 
   // 2) Lee el CSV entero y devuelve { headers: [...], rows: [ [...], ... ] }
   async function loadCSV(path) {
-    const res = await fetch(path);
-    if (!res.ok) throw new Error(`No se pudo cargar CSV: ${res.status}`);
-    const text = await res.text();
-    const lines = text.trim().split('\n').map(r => r.trim());
-    const headers = lines[0].split(',').map(h => h.trim());
-    const rows = lines.slice(1).map(line => line.split(',').map(cell => cell.trim()));
-    return { headers, rows };
-  }
+  const res = await fetch(path);
+  const text = await res.text();
+  const lines = text.trim().split('\n').map(r => r.trim());
+  const headers = lines[0]
+    .split(',')
+    .map(h => h.trim().replace(/^"|"$/g, ''));
+  const rows = lines.slice(1).map(line =>
+    line.split(',').map(cell =>
+      cell.trim().replace(/^"(.*)"$/, '$1')
+    )
+  );
+  return { headers, rows };
+}
+
 
   // 3) Construye el objeto 'variables' automáticamente
   function buildVariables(headers, rows) {
