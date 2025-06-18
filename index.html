@@ -11,7 +11,6 @@
     label { font-weight: bold; display: block; margin-top: 10px; }
     small { display: block; margin-bottom: 5px; color: #555; font-style: italic; }
   </style>
-  <!-- PapaParse desde CDN -->
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -55,7 +54,6 @@
   <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
   <script>
-    // Limpia texto para usarlo como ID
     function normalizeId(text) {
       return text
         .normalize('NFD')
@@ -65,7 +63,6 @@
         .toLowerCase();
     }
 
-    // Construye los <select> a partir de variables
     function buildSelectors(vars) {
       const c = document.getElementById("selectors");
       c.innerHTML = '';
@@ -83,15 +80,11 @@
       });
     }
 
-    // Lee valores seleccionados
     function getSelected(id, sep = ", ") {
       const s = document.getElementById(id);
-      return s
-        ? Array.from(s.selectedOptions).map(o => o.value).join(sep)
-        : '';
+      return s ? Array.from(s.selectedOptions).map(o => o.value).join(sep) : '';
     }
 
-    // Arma el prompt final
     function buildPrompt() {
       const parts = [];
       const iw = document.getElementById("iw").value.trim();
@@ -115,7 +108,6 @@
       document.getElementById("output").innerText = parts.join(' ') + suf;
     }
 
-    // Copia al portapapeles
     function copyPrompt() {
       const t = document.getElementById("output").innerText;
       navigator.clipboard.writeText(t)
@@ -123,22 +115,20 @@
         .catch(() => alert("❌ Error al copiar"));
     }
 
-    // Carga y parsea con PapaParse, quitando comillas y respetando comas internas
-Papa.parse("https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final.csv", {
+    // CSV RAW CORRECTO
+    Papa.parse("https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv", {
       download: true,
-      delimiter: ',',           // separador de columnas
-      quoteChar: '"',           // caracter de cita
-      header: true,             // usa primera fila como keys
+      delimiter: ',',
+      quoteChar: '"',
+      header: true,
       skipEmptyLines: true,
       transformHeader: h => h.replace(/"/g,'').trim(),
       transform: v => v.replace(/"/g,'').trim(),
       complete: ({ data }) => {
-        // data = [ {col1: "valor1", col2: "valor2", ...}, ... ]
         if (data.length === 0) {
           alert("⚠️ CSV vacío o malformado");
           return;
         }
-        // agrupa valores únicos por columna
         const vars = {};
         Object.keys(data[0]).forEach(h => vars[h] = []);
         data.forEach(row => {
@@ -147,8 +137,6 @@ Papa.parse("https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/
           });
         });
         buildSelectors(vars);
-
-        // → Verifica en consola la primera fila limpia:
         console.log("Primer row parseada:", data[0]);
       },
       error: err => {
