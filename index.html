@@ -96,9 +96,9 @@
       let suf = '';
       const sref = document.getElementById("sref").value.trim();
       const oref = document.getElementById("oref").value.trim();
-      if (sref) suf += ` --sref ${sref}`;
-      if (oref) suf += ` --oref ${oref}`;
-      if (iw)   suf += ` --iw 2`;
+      if (sref) suf += ` --sref ${sref} --sw 50`;
+      if (oref) suf += ` --oref ${oref} --ow 60`;
+      if (iw)   suf += ` --iw 1`;
 
       const prm = getSelected("params", " ");
       if (prm) suf += ` ${prm}`;
