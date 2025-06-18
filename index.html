@@ -5,11 +5,15 @@
   <title>Generador de Prompts Urbanalítica</title>
   <style>
     body { font-family: sans-serif; margin: 40px; max-width: 800px; }
-    select, input[type="url"] { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
+    select, input[type="text"] { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
     button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
     h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
     label { font-weight: bold; display: block; margin-top: 10px; }
-    small { display: block; margin-bottom: 5px; color: #555; font-style: italic; }
+    .preview-container img {
+      max-width: 120px;
+      margin: 4px;
+      display: inline-block;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -19,56 +23,64 @@
   <p>Generador de Prompts __ URBANALÍTICA</p>
   <p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
 
-    <label for="iw">🖼️ Imagen guía.(<code>ajusta con --iw 100</code>)</label>
-  <input type="url" id="iw" placeholder="https://...">
-  <!-- aquí va el preview -->
-<img id="preview_iw" style="max-width:200px; display:block; margin-bottom:12px;" />
+  <label for="iw">🖼️ Imagen guía. (<code>ajusta con --iw 100</code>)</label>
+  <input type="text" id="iw" placeholder="Pega hasta varios enlaces separados por espacio o coma">
+  <div id="preview_iw" class="preview-container"></div>
 
   <script>
-  document.getElementById('iw').addEventListener('input', function() {
-    const url = this.value.trim();
-    const img = document.getElementById('preview_iw');
-    if (url) {
-      img.src = url;
-      img.style.display = 'block';
-    } else {
-      img.style.display = 'none';
-    }
-  });
-</script>
-  
-  <div id="selectors"></div>
+    // Previsualiza múltiples imágenes split por espacio o coma
+    ['iw'].forEach(id => {
+      const inp = document.getElementById(id);
+      const container = document.getElementById('preview_' + id);
+      inp.addEventListener('input', () => {
+        const urls = inp.value
+          .split(/[\s,]+/)
+          .map(u => u.trim())
+          .filter(u => u);
+        container.innerHTML = '';
+        urls.forEach(u => {
+          const img = document.createElement('img');
+          img.src = u;
+          img.onerror = () => img.remove();
+          container.appendChild(img);
+        });
+      });
+    });
+  </script>
 
+  <div id="selectors"></div>
   <hr>
 
   <label for="sref">🎨 Estilo visual. (<code>--sref, ajusta con --sw 100</code>)</label>
-  <input type="url" id="sref" placeholder="https://...">
-  <!-- aquí va el preview -->
-<img id="preview_iw" style="max-width:200px; display:block; margin-bottom:12px;" />
+  <input type="text" id="sref" placeholder="Pega hasta varios enlaces separados por espacio o coma">
+  <div id="preview_sref" class="preview-container"></div>
 
   <label for="oref">🎨 Objeto y Estilo exactos. (<code>--oref, ajusta con --ow 100</code>)</label>
-  <input type="url" id="oref" placeholder="https://...">
-  <!-- aquí va el preview -->
-<img id="preview_iw" style="max-width:200px; display:block; margin-bottom:12px;" />
+  <input type="text" id="oref" placeholder="Pega hasta varios enlaces separados por espacio o coma">
+  <div id="preview_oref" class="preview-container"></div>
 
   <script>
-  ['sref','oref'].forEach(id => {
-    const inp = document.getElementById(id);
-    const img = document.getElementById('preview_' + id);
-    inp.addEventListener('input', () => {
-      const url = inp.value.trim();
-      if (url) {
-        img.src = url;
-        img.style.display = 'block';
-      } else {
-        img.style.display = 'none';
-      }
+    ['sref','oref'].forEach(id => {
+      const inp = document.getElementById(id);
+      const container = document.getElementById('preview_' + id);
+      inp.addEventListener('input', () => {
+        const urls = inp.value
+          .split(/[\s,]+/)
+          .map(u => u.trim())
+          .filter(u => u);
+        container.innerHTML = '';
+        urls.forEach(u => {
+          const img = document.createElement('img');
+          img.src = u;
+          img.onerror = () => img.remove();
+          container.appendChild(img);
+        });
+      });
     });
-  });
-</script>
+  </script>
 
   <label for="p">🎨 Moodboards. (<code>--p</code>)</label>
-  <input type="code" id="moodboard" placeholder="--p d19hjfk">
+  <input type="text" id="moodboard" placeholder="--p d19hjfk">
 
   <hr>
 
@@ -80,8 +92,8 @@
     <option value="--repeat 1">--repeat 1 (cambia a 2 para ahorrar tiempo)</option>
     <option value="--seed 123">--seed 123 (para series consistentes)</option>
     <option value="--weird 1000">--weird 1000 (ajusta a 0 para una imagen muy seria)</option>
-    <option value="--chaos 50">--chaos 50 (que tanto varian tus cuatro imágenes por iteración?)</option>
-    <option value="--tile">--tile (para imágenes mosaico) </option>
+    <option value="--chaos 50">--chaos 50 (que tanto varían tus cuatro imágenes por iteración?)</option>
+    <option value="--tile">--tile (para imágenes mosaico)</option>
   </select>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
@@ -122,36 +134,30 @@
     }
 
     function buildPrompt() {
-  const parts = [];
-  // — tus otras partes (iw, selectors…) —
-  const iw = document.getElementById("iw").value.trim();
-  if (iw) parts.push(iw);
+      const parts = [];
+      const iw = document.getElementById("iw").value.trim();
+      if (iw) parts.push(iw);
 
-  document.querySelectorAll("#selectors select").forEach(sel => {
-    const v = getSelected(sel.id);
-    if (v) parts.push(v);
-  });
+      document.querySelectorAll("#selectors select").forEach(sel => {
+        const v = getSelected(sel.id);
+        if (v) parts.push(v);
+      });
 
-  // — aquí armamos el sufijo —
-  let suf = '';
-  const sref = document.getElementById("sref").value.trim();
-  const oref = document.getElementById("oref").value.trim();
-  if (sref) suf += ` --sref ${sref} --sw 50`;
-  if (oref) suf += ` --oref ${oref} --ow 60`;
-  if (iw)   suf += ` --iw 1`;
+      let suf = '';
+      const sref = document.getElementById("sref").value.trim();
+      const oref = document.getElementById("oref").value.trim();
+      if (sref) suf += ` --sref ${sref} --sw 50`;
+      if (oref) suf += ` --oref ${oref} --ow 60`;
+      if (iw)   suf += ` --iw 1`;
 
-  // **nuevo bloque**: recoge el moodboard
-  const mood = document.getElementById("moodboard").value.trim();
-  if (mood) suf += ` ${mood}`;
+      const mood = document.getElementById("moodboard").value.trim();
+      if (mood) suf += ` ${mood}`;
 
-  // luego params existentes
-  const prm = getSelected("params", " ");
-  if (prm) suf += ` ${prm}`;
+      const prm = getSelected("params", " ");
+      if (prm) suf += ` ${prm}`;
 
-  // y finalmente lo juntas todo
-  document.getElementById("output").innerText = parts.join(' ') + suf;
-}
-
+      document.getElementById("output").innerText = parts.join(' ') + suf;
+    }
 
     function copyPrompt() {
       const t = document.getElementById("output").innerText;
@@ -160,7 +166,6 @@
         .catch(() => alert("❌ Error al copiar"));
     }
 
-    // CSV RAW CORRECTO
     Papa.parse("https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv", {
       download: true,
       delimiter: ',',
@@ -182,7 +187,6 @@
           });
         });
         buildSelectors(vars);
-        console.log("Primer row parseada:", data[0]);
       },
       error: err => {
         console.error(err);
