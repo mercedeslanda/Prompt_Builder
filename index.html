@@ -18,35 +18,31 @@
   <h1>Generador de Prompt Visual – Urbanalítica</h1>
   <p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
 
-    <label for="iw">🖼️ Imagen guía. (ajusta con --iw 100) (<code>--iw</code>)</label>
+    <label for="iw">🖼️ Imagen guía.(<code>ajusta con --iw 100</code>)</label>
   <input type="url" id="iw" placeholder="https://...">
   
   <div id="selectors"></div>
 
   <hr>
 
-  <label for="sref">🎨 Estilo visual. (ajusta con --sw 100) (<code>--sref</code>)</label>
+  <label for="sref">🎨 Estilo visual. (<code>--sref, ajusta con --sw 100</code>)</label>
   <input type="url" id="sref" placeholder="https://...">
 
-  <label for="oref">🔁 Objeto y Estilo exactos. (ajusta con --ow 100)(<code>--oref</code>)</label>
+  <label for="oref">🔁 Objeto y Estilo exactos. (<code>--oref, ajusta con --ow 100</code>)</label>
   <input type="url" id="oref" placeholder="https://...">
 
   <hr>
 
   <label for="params">⚙️ Parámetros Midjourney</label>
   <select id="params" multiple>
-    <option value="--ar 16:9">--ar 16:9</option>
-    <option value="--ar 9:16">--ar 9:16</option>
-    <option value="--style raw">--style raw</option>
-    <option value="--stylize 500">--stylize 550</option>
-    <option value="--quality 2">--quality 2</option>
+    <option value="--ar 16:9 (aspect ratio horizontal)">--ar 16:9</option>
+    <option value="--style raw (no aporta nada extra)">--style raw</option>
+    <option value="--stylize 500 (estilización media">--stylize 550</option>
     <option value="--repeat 1">--repeat 1</option>
     <option value="--seed 123">--seed 123</option>
-    <option value="--weird 3000">--weird 1000</option>
-    <option value="--chaos 100">--chaos 100</option>
-    <option value="--stop 100">--stop 100</option>
-    <option value="--tile">--tile</option>
-    <option value="--hd">--hd</option>
+    <option value="--weird 1000">--weird 1000</option>
+    <option value="--chaos 50">--chaos 50</option>
+    <option value="--tile (para imágenes mosaico">--tile</option>
   </select>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
