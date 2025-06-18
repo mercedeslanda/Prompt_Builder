@@ -32,7 +32,7 @@
   <label for="oref">🎨 Objeto y Estilo exactos. (<code>--oref, ajusta con --ow 100</code>)</label>
   <input type="url" id="oref" placeholder="https://...">
 
-    <label for="p">🎨 Moodboards. (<code>--p</code>)</label>
+  <label for="p">🎨 Moodboards. (<code>--p</code>)</label>
   <input type="code" id="moodboard" placeholder="--p d19hjfk">
 
   <hr>
@@ -87,27 +87,36 @@
     }
 
     function buildPrompt() {
-      const parts = [];
-      const iw = document.getElementById("iw").value.trim();
-      if (iw) parts.push(iw);
+  const parts = [];
+  // — tus otras partes (iw, selectors…) —
+  const iw = document.getElementById("iw").value.trim();
+  if (iw) parts.push(iw);
 
-      document.querySelectorAll("#selectors select").forEach(sel => {
-        const v = getSelected(sel.id);
-        if (v) parts.push(v);
-      });
+  document.querySelectorAll("#selectors select").forEach(sel => {
+    const v = getSelected(sel.id);
+    if (v) parts.push(v);
+  });
 
-      let suf = '';
-      const sref = document.getElementById("sref").value.trim();
-      const oref = document.getElementById("oref").value.trim();
-      if (sref) suf += ` --sref ${sref} --sw 50`;
-      if (oref) suf += ` --oref ${oref} --ow 60`;
-      if (iw)   suf += ` --iw 1`;
+  // — aquí armamos el sufijo —
+  let suf = '';
+  const sref = document.getElementById("sref").value.trim();
+  const oref = document.getElementById("oref").value.trim();
+  if (sref) suf += ` --sref ${sref} --sw 50`;
+  if (oref) suf += ` --oref ${oref} --ow 60`;
+  if (iw)   suf += ` --iw 1`;
 
-      const prm = getSelected("params", " ");
-      if (prm) suf += ` ${prm}`;
+  // **nuevo bloque**: recoge el moodboard
+  const mood = document.getElementById("moodboard").value.trim();
+  if (mood) suf += ` ${mood}`;
 
-      document.getElementById("output").innerText = parts.join(' ') + suf;
-    }
+  // luego params existentes
+  const prm = getSelected("params", " ");
+  if (prm) suf += ` ${prm}`;
+
+  // y finalmente lo juntas todo
+  document.getElementById("output").innerText = parts.join(' ') + suf;
+}
+
 
     function copyPrompt() {
       const t = document.getElementById("output").innerText;
