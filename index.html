@@ -4,177 +4,166 @@
   <meta charset="UTF-8">
   <title>Generador de Prompts Urbanalítica</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-    }
-    select, button, input {
-      margin: 0.5rem 0;
-      padding: 0.5rem;
-      width: 300px;
-      text-align: center;
-    }
-    #output {
-      margin-top: 1rem;
-      background: #f0f0f0;
-      padding: 1rem;
-      border-radius: 8px;
-      width: fit-content;
-    }
-    label {
-      margin-top: 1rem;
-      font-weight: bold;
-      display: block;
-    }
+    body { font-family: sans-serif; margin: 40px; max-width: 800px; }
+    select, input[type="url"] { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
+    button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
+    h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
+    label { font-weight: bold; display: block; margin-top: 10px; }
+    small { display: block; margin-bottom: 5px; color: #555; font-style: italic; }
   </style>
+  <!-- PapaParse desde CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
-  <h1>Generador de Prompt Visual – Urbanalítica</h1>
+  <h1>🔧 Generador de Prompt Visual – Urbanalítica</h1>
   <p>Selecciona múltiples opciones por categoría usando <strong>Ctrl / Cmd + clic</strong>:</p>
   <div id="selectors"></div>
+
   <hr>
+
   <label for="sref">🎨 Estilo visual (URL para <code>--sref</code>)</label>
+  <small>Referencia estética general</small>
   <input type="url" id="sref" placeholder="https://...">
+
   <label for="iw">🖼️ Imagen guía (URL para <code>--iw</code>)</label>
+  <small>Imagen contextual que influye sutilmente. Se coloca al inicio + <code>--iw 2</code> al final</small>
   <input type="url" id="iw" placeholder="https://...">
+
   <label for="oref">🔁 Imagen exacta (URL para <code>--oref</code>)</label>
+  <small>Referencia precisa para forma, sujeto o composición</small>
   <input type="url" id="oref" placeholder="https://...">
+
   <hr>
-  <label for="params">⚙️ Parámetros Midjourney</label>
+
+  <label for="params">⚙️ Parámetros Midjourney (elige uno o más)</label>
+  <small>Control creativo, técnico y estilístico</small>
   <select id="params" multiple>
     <option value="--ar 16:9">--ar 16:9 → Imagen horizontal</option>
     <option value="--ar 9:16">--ar 9:16 → Imagen vertical</option>
     <option value="--style raw">--style raw → Sin estilización automática</option>
-    <option value="--s 550">--s 550 → Stylize bajo</option>
-    <option value="--s 10">--s 10 → Stylize mínimo</option>
-    <option value="--s 1000">--s 1000 → Stylize alto</option>
-    <option value="--weird 0">--weird 0 → Sin rareza</option>
-    <option value="--chaos 50">--chaos 50 → Aleatoriedad media</option>
+    <option value="--stylize 500">--stylize 500 → Estilización moderada</option>
+    <option value="--quality 2">--quality 2 → Alta calidad de render</option>
+    <option value="--repeat 1">--repeat 1 → Repetir generación 1 vez</option>
+    <option value="--seed 123">--seed 123 → Semilla fija para reproducibilidad</option>
+    <option value="--weird 3000">--weird 3000 → Máxima rareza visual</option>
+    <option value="--chaos 100">--chaos 100 → Máxima aleatoriedad</option>
+    <option value="--stop 100">--stop 100 → Finalizar al 100% del render</option>
+    <option value="--tile">--tile → Patrón repetible</option>
+    <option value="--hd">--hd → Alta resolución experimental</option>
   </select>
+
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
   <button onclick="copyPrompt()">📋 Copiar Prompt</button>
+
   <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
-<script>
-  function normalizeId(text) {
-    return text
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-zA-Z0-9]+/g, '_')
-      .replace(/^_|_$/g, '')
-      .toLowerCase();
-  }
-
-  async function loadCSV(path) {
-    const res = await fetch(path);
-    if (!res.ok) throw new Error(`No se pudo cargar CSV: ${res.status}`);
-    const text = await res.text();
-    const lines = text
-      .trim()
-      .split('\n')
-      .map(r => r.trim())
-      .filter(r => r.length > 0);
-
-    const headers = lines[0]
-      .split(',')
-      .map(h => h.trim().replace(/"/g, ''));
-
-    const rows = lines.slice(1).map(line =>
-      line
-        .split(',')
-        .map(cell => cell.replace(/"/g, '').trim())
-    );
-
-    return { headers, rows };
-  }
-
-  function buildVariables(headers, rows) {
-    const vars = {};
-    headers.forEach(h => vars[h] = []);
-    rows.forEach(cells => {
-      headers.forEach((h, i) => {
-        const v = cells[i];
-        if (v && !vars[h].includes(v)) vars[h].push(v);
-      });
-    });
-    return vars;
-  }
-
-  function buildSelectors(variables) {
-    const container = document.getElementById("selectors");
-    container.innerHTML = '';
-    Object.entries(variables).forEach(([header, options]) => {
-      const id = normalizeId(header);
-      container.innerHTML += `<label for="${id}">${header}</label>`;
-      const sel = document.createElement("select");
-      sel.id = id;
-      sel.multiple = true;
-      options.forEach(optVal => {
-        const opt = document.createElement("option");
-        opt.value = optVal;
-        opt.innerText = optVal;
-        sel.appendChild(opt);
-      });
-      container.appendChild(sel);
-    });
-  }
-
-  function getSelected(id, sep = ", ") {
-    const sel = document.getElementById(id);
-    return sel
-      ? Array.from(sel.selectedOptions).map(o => o.value).join(sep)
-      : "";
-  }
-
-  function buildPrompt() {
-    const parts = [];
-    const iw = document.getElementById("iw").value.trim();
-    if (iw) parts.push(iw);
-
-    document.querySelectorAll("#selectors select").forEach(sel => {
-      const vals = getSelected(sel.id);
-      if (vals) parts.push(vals);
-    });
-
-    const sref = document.getElementById("sref").value.trim();
-    const oref = document.getElementById("oref").value.trim();
-    let suffix = "";
-    if (sref) suffix += ` --sref ${sref}`;
-    if (oref) suffix += ` --oref ${oref}`;
-    if (iw) suffix += ` --iw 2`;
-
-    const params = getSelected("params", " ");
-    if (params) suffix += ` ${params}`;
-
-    document.getElementById("output").innerText = parts.join(" ") + suffix;
-  }
-
-  function copyPrompt() {
-    const txt = document.getElementById("output").innerText;
-    navigator.clipboard.writeText(txt)
-      .then(() => alert("✅ Prompt copiado"))
-      .catch(() => alert("❌ Error copiando"));
-  }
-
-  (async () => {
-    try {
-      const { headers, rows } = await loadCSV("Prompts_Urbanal_tica_Final.csv");
-      const variables = buildVariables(headers, rows);
-      buildSelectors(variables);
-    } catch (e) {
-      console.error(e);
-      alert("❌ Error cargando variables, mira la consola");
+  <script>
+    // Normaliza texto a un id válido
+    function normalizeId(text) {
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/^_|_$/g, '')
+        .toLowerCase();
     }
-  })();
-</script>
 
+    // Genera los <select> a partir de un objeto variables
+    function buildSelectors(variables) {
+      const container = document.getElementById("selectors");
+      container.innerHTML = '';
+      Object.entries(variables).forEach(([header, options]) => {
+        const id = normalizeId(header);
+        container.innerHTML += `<label for="${id}">${header}</label>`;
+        const sel = document.createElement("select");
+        sel.id = id;
+        sel.multiple = true;
+        options.forEach(val => {
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.innerText = val;
+          sel.appendChild(opt);
+        });
+        container.appendChild(sel);
+      });
+    }
 
+    // Lee valores seleccionados
+    function getSelected(id, sep = ", ") {
+      const sel = document.getElementById(id);
+      return sel
+        ? Array.from(sel.selectedOptions).map(o => o.value).join(sep)
+        : '';
+    }
+
+    // Construye el prompt final
+    function buildPrompt() {
+      const parts = [];
+
+      // Imagen guía al inicio
+      const iw = document.getElementById("iw").value.trim();
+      if (iw) parts.push(iw);
+
+      // Recorre dinámicamente los <select> dentro de #selectors
+      document.querySelectorAll("#selectors select").forEach(sel => {
+        const vals = getSelected(sel.id);
+        if (vals) parts.push(vals);
+      });
+
+      // Sufijos: sref, oref, iw y params
+      let suffix = '';
+      const sref = document.getElementById("sref").value.trim();
+      const oref = document.getElementById("oref").value.trim();
+      if (sref)  suffix += ` --sref ${sref}`;
+      if (oref)  suffix += ` --oref ${oref}`;
+      if (iw)    suffix += ` --iw 2`;
+
+      const params = getSelected("params", " ");
+      if (params) suffix += ` ${params}`;
+
+      document.getElementById("output").innerText = parts.join(' ') + suffix;
+    }
+
+    // Copiar prompt al portapapeles
+    function copyPrompt() {
+      const text = document.getElementById("output").innerText;
+      navigator.clipboard.writeText(text)
+        .then(() => alert("✅ Prompt copiado al portapapeles"))
+        .catch(() => alert("❌ Error al copiar"));
+    }
+
+    // Al cargar, parsea el CSV con PapaParse
+    Papa.parse("Prompts_Urbanal_tica_Final.csv", {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: ({ data }) => {
+        // data = [ { header1: "valor", header2: "otro", ... }, ... ]
+        const variables = {};
+        if (data.length === 0) {
+          alert("⚠️ CSV vacío o malformado");
+          return;
+        }
+        // Inicializa arrays
+        Object.keys(data[0]).forEach(h => variables[h.trim()] = []);
+        // Recorre cada fila, elimina comillas y acumula opciones únicas
+        data.forEach(row => {
+          Object.entries(row).forEach(([h, v]) => {
+            const clean = v.replace(/"/g, '').trim();
+            if (clean && !variables[h].includes(clean)) {
+              variables[h].push(clean);
+            }
+          });
+        });
+        buildSelectors(variables);
+      },
+      error: err => {
+        console.error(err);
+        alert("❌ Error cargando CSV: revisa consola");
+      }
+    });
+  </script>
 
 </body>
 </html>
