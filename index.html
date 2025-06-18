@@ -62,7 +62,6 @@
   <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
 <script>
-  // 1) Función para normalizar texto a un id válido
   function normalizeId(text) {
     return text
       .normalize('NFD')
@@ -72,24 +71,29 @@
       .toLowerCase();
   }
 
-  // 2) Lee el CSV entero y devuelve { headers: [...], rows: [ [...], ... ] }
   async function loadCSV(path) {
-  const res = await fetch(path);
-  const text = await res.text();
-  const lines = text.trim().split('\n').map(r => r.trim());
-  const headers = lines[0]
-    .split(',')
-    .map(h => h.trim().replace(/^"|"$/g, ''));
-  const rows = lines.slice(1).map(line =>
-    line.split(',').map(cell =>
-      cell.trim().replace(/^"(.*)"$/, '$1')
-    )
-  );
-  return { headers, rows };
-}
+    const res = await fetch(path);
+    if (!res.ok) throw new Error(`No se pudo cargar CSV: ${res.status}`);
+    const text = await res.text();
+    const lines = text
+      .trim()
+      .split('\n')
+      .map(r => r.trim())
+      .filter(r => r.length > 0);
 
+    const headers = lines[0]
+      .split(',')
+      .map(h => h.trim().replace(/"/g, ''));
 
-  // 3) Construye el objeto 'variables' automáticamente
+    const rows = lines.slice(1).map(line =>
+      line
+        .split(',')
+        .map(cell => cell.replace(/"/g, '').trim())
+    );
+
+    return { headers, rows };
+  }
+
   function buildVariables(headers, rows) {
     const vars = {};
     headers.forEach(h => vars[h] = []);
@@ -102,15 +106,12 @@
     return vars;
   }
 
-  // 4) Genera los <select> para cada header
   function buildSelectors(variables) {
     const container = document.getElementById("selectors");
     container.innerHTML = '';
     Object.entries(variables).forEach(([header, options]) => {
       const id = normalizeId(header);
-      // etiqueta
       container.innerHTML += `<label for="${id}">${header}</label>`;
-      // select múltiple
       const sel = document.createElement("select");
       sel.id = id;
       sel.multiple = true;
@@ -124,7 +125,6 @@
     });
   }
 
-  // 5) Helper para leer valores seleccionados
   function getSelected(id, sep = ", ") {
     const sel = document.getElementById(id);
     return sel
@@ -132,21 +132,16 @@
       : "";
   }
 
-  // 6) Monta el prompt
   function buildPrompt() {
-    // todos los selects (salvo params) en orden de aparición
     const parts = [];
-    // si hay imagen guía
     const iw = document.getElementById("iw").value.trim();
     if (iw) parts.push(iw);
 
-    // recorre cada selector generado
     document.querySelectorAll("#selectors select").forEach(sel => {
       const vals = getSelected(sel.id);
       if (vals) parts.push(vals);
     });
 
-    // sufijos: sref, oref, iw y params
     const sref = document.getElementById("sref").value.trim();
     const oref = document.getElementById("oref").value.trim();
     let suffix = "";
@@ -160,16 +155,13 @@
     document.getElementById("output").innerText = parts.join(" ") + suffix;
   }
 
-  // 7) Copiar al portapapeles
   function copyPrompt() {
     const txt = document.getElementById("output").innerText;
-    navigator.clipboard.writeText(txt).then(
-      () => alert("✅ Prompt copiado al portapapeles"),
-      () => alert("❌ Error al copiar")
-    );
+    navigator.clipboard.writeText(txt)
+      .then(() => alert("✅ Prompt copiado"))
+      .catch(() => alert("❌ Error copiando"));
   }
 
-  // 8) Inicialización: carga CSV y construye selects
   (async () => {
     try {
       const { headers, rows } = await loadCSV("Prompts_Urbanal_tica_Final.csv");
@@ -177,10 +169,11 @@
       buildSelectors(variables);
     } catch (e) {
       console.error(e);
-      alert("❌ Ocurrió un error cargando las variables: revisa consola");
+      alert("❌ Error cargando variables, mira la consola");
     }
   })();
 </script>
+
 
 
 </body>
