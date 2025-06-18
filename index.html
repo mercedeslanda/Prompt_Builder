@@ -8,6 +8,8 @@
     select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
     button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
     .preview-container img { max-width: 120px; margin: 4px; display: inline-block; }
+    .add-option { display: flex; margin-bottom: 12px; }
+    .add-option input { flex: 1; margin-right: 6px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -16,6 +18,7 @@
   <h1>Imaginar el Futuro del Territorio a 25 años</h1>
   <p>Generador de Prompts __ URBANALÍTICA</p>
 
+  <!-- Imagen guía -->
   <label for="iw">🖼️ Imagen guía. (<code>ajusta con --iw 100</code>)</label>
   <input type="text" id="iw" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_iw" class="preview-container"></div>
@@ -23,40 +26,42 @@
   <div id="selectors"></div>
   <hr>
 
+  <!-- Estilo visual -->
   <label for="sref">🎨 Estilo visual. (<code>--sref</code>)</label>
   <input type="text" id="sref" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_sref" class="preview-container"></div>
 
+  <!-- Objeto estilo exacto -->
   <label for="oref">🎨 Objeto y estilo exactos. (<code>--oref</code>)</label>
   <input type="text" id="oref" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_oref" class="preview-container"></div>
 
+  <!-- Moodboards -->
   <label for="moodboard">🎨 Moodboards. (<code>--p</code>)</label>
   <input type="text" id="moodboard" placeholder="--p d19hjfk">
 
   <hr>
 
+  <!-- Parámetros -->
   <label for="params">⚙️ Parámetros Midjourney</label>
-  <select id="params" multiple>
-    <option value="--ar 16:9">--ar 16:9</option>
-    <option value="--style raw">--style raw</option>
-    <option value="--stylize 500">--stylize 550</option>
-    <option value="--repeat 1">--repeat 1</option>
-    <option value="--seed 123">--seed 123</option>
-    <option value="--weird 1000">--weird 1000</option>
-    <option value="--chaos 50">--chaos 50</option>
-    <option value="--tile">--tile</option>
-  </select>
+  <select id="params" multiple></select>
+  <div class="add-option">
+    <input type="text" id="new_params" placeholder="Agregar parámetro...">
+    <button onclick="addOption('params', new_params.value)">+ Añadir</button>
+  </div>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
-  <button onclick="copyPrompt()">📋 Copiar Prompt</button>
+  <button onclick="copyAndSavePrompt()">📋 Copiar + Guardar Prompt</button>
 
   <label for="output">Prompt generado (editable):</label>
   <textarea id="output" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
+    const SHEET_URL_ADD_OPTION = 'https://script.google.com/a/macros/urbanalitica.com/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
+    const SHEET_URL_SAVE_PROMPT = 'https://script.google.com/macros/library/d/1nsMORaQ4tU2F5qZjZ1rihCVvXpLvwl4IObmx_LUteXASTCvxwT4rJhNk/1';
+
     function normalizeId(text) {
-      return text.normalize('NFD').replace(/[̀-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
+      return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
     }
 
     function buildSelectors(vars) {
@@ -65,12 +70,19 @@
         const id = normalizeId(hdr);
         c.innerHTML += `<label for="${id}">${hdr}</label>`;
         const sel = document.createElement('select'); sel.id = id; sel.multiple = true;
-        opts.forEach(v => { const o = document.createElement('option'); o.value = v; o.innerText = v; sel.appendChild(o); });
+        opts.forEach(v => {
+          const o = document.createElement('option'); o.value = v; o.innerText = v; sel.appendChild(o);
+        });
+        // add new option input for each selector
+        c.innerHTML += `<div class="add-option">
+          <input type="text" id="new_${id}" placeholder="Agregar opción a ${hdr}...">
+          <button onclick="addOption('${id}', document.getElementById('new_${id}').value)">+ Añadir</button>
+        </div>`;
         c.appendChild(sel);
       });
     }
 
-    function getSelected(id, sep = ', ') {
+    function getSelected(id, sep = ' ') {
       const s = document.getElementById(id);
       return s ? Array.from(s.selectedOptions).map(o => o.value).join(sep) : '';
     }
@@ -81,33 +93,69 @@
       inp.addEventListener('input', () => {
         const urls = inp.value.split(/[\s,]+/).map(u => u.trim()).filter(u => u);
         container.innerHTML = '';
-        urls.forEach(u => { const img = document.createElement('img'); img.src = u; img.onerror = () => img.remove(); container.appendChild(img); });
+        urls.forEach(u => {
+          const img = document.createElement('img'); img.src = u;
+          img.onerror = () => img.remove();
+          container.appendChild(img);
+        });
       });
+    }
+
+    function addOption(selectorId, value) {
+      if (!value) return;
+      // POST to Google Apps Script to append to sheet
+      fetch(SHEET_URL_ADD_OPTION, {
+        method: 'POST', body: JSON.stringify({ header: selectorId, value }),
+        headers: { 'Content-Type': 'application/json' }
+      }).then(res => res.json()).then(() => {
+        // update UI
+        const sel = document.getElementById(selectorId);
+        const opt = document.createElement('option'); opt.value = value; opt.innerText = value;
+        sel.appendChild(opt);
+        document.getElementById('new_' + selectorId).value = '';
+      }).catch(console.error);
     }
 
     function buildPrompt() {
       const parts = [];
       ['iw','sref','oref'].forEach(id => {
         const txt = document.getElementById(id).value.trim();
-        if (txt) txt.split(/[\s,]+/).filter(u => u).forEach(u => parts.push(u));
+        if (txt) txt.split(/\s+/).filter(u => u).forEach(u => parts.push(u));
       });
       document.querySelectorAll('#selectors select').forEach(sel => {
-        const v = getSelected(sel.id);
+        const v = getSelected(sel.id, ', ');
         if (v) parts.push(v);
       });
       const mood = document.getElementById('moodboard').value.trim(); if (mood) parts.push(mood);
       const prm = getSelected('params', ' '); if (prm) parts.push(prm);
-      document.getElementById('output').value = parts.join(' ') + '';
+      document.getElementById('output').value = parts.join(' ');
     }
 
-    function copyPrompt() {
-      const t = document.getElementById('output').value;
-      navigator.clipboard.writeText(t).then(() => alert('✅ Copiado')).catch(() => alert('❌ Error'));
+    function copyAndSavePrompt() {
+      const promptText = document.getElementById('output').value;
+      // copy to clipboard
+      navigator.clipboard.writeText(promptText).catch(console.error);
+      // save to sheet
+      fetch(SHEET_URL_SAVE_PROMPT, {
+        method: 'POST', body: JSON.stringify({ prompt: promptText }),
+        headers: { 'Content-Type': 'application/json' }
+      }).catch(console.error);
+      alert('✅ Prompt copiado y guardado');
     }
 
     ['iw','sref','oref'].forEach(setupPreview);
 
-    Papa.parse('https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv',{download:true,header:true,skipEmptyLines:true,transformHeader:h=>h.replace(/"/g,'').trim(),transform:v=>v.replace(/"/g,'').trim(),complete:({data})=>{if(!data.length)return alert('CSV malformado');const vars={};Object.keys(data[0]).forEach(h=>vars[h]=[]);data.forEach(row=>Object.entries(row).forEach(([h,v])=>{if(v&&!vars[h].includes(v))vars[h].push(v);}));buildSelectors(vars);},error:err=>{console.error(err);alert('Error cargando CSV');}});
+    Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv',{
+      download:true, header:true, skipEmptyLines:true,
+      transformHeader:h=>h.replace(/"/g,'').trim(), transform:v=>v.replace(/"/g,'').trim(),
+      complete:({data})=>{
+        if(!data.length) return alert('CSV malformado');
+        const vars = {};
+        Object.keys(data[0]).forEach(h=>vars[h]=[]);
+        data.forEach(row=>Object.entries(row).forEach(([h,v])=>{ if(v&&!vars[h].includes(v)) vars[h].push(v); }));
+        buildSelectors(vars);
+      }, error:err=>{ console.error(err); alert('Error cargando CSV'); }
+    });
   </script>
 </body>
 </html>
