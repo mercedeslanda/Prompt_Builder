@@ -41,37 +41,7 @@
 <h1>Generador de Prompt Visual – Urbanalítica</h1>
 <p>Selecciona múltiples opciones por categoría usando <strong>Ctrl / Cmd + clic</strong>:</p>
 
-<div id="selectors">
-  <label for="medio">Medio</label>
-  <select id="medio" multiple></select>
-
-  <label for="tipo_de_vista">Tipo de vista</label>
-  <select id="tipo_de_vista" multiple></select>
-
-  <label for="tipo_de_intervención">Tipo de intervención</label>
-  <select id="tipo_de_intervención" multiple></select>
-
-  <label for="descriptores_constructivos">Descriptores constructivos</label>
-  <select id="descriptores_constructivos" multiple></select>
-
-  <label for="bioma_diseñado">Bioma diseñado</label>
-  <select id="bioma_diseñado" multiple></select>
-
-  <label for="sitio_/_contexto_climático">Sitio / Contexto climático</label>
-  <select id="sitio_/_contexto_climático" multiple></select>
-
-  <label for="elementos_naturales_destacados">Elementos naturales destacados</label>
-  <select id="elementos_naturales_destacados" multiple></select>
-
-  <label for="señales_de_uso_humano">Señales de uso humano</label>
-  <select id="señales_de_uso_humano" multiple></select>
-
-  <label for="fauna_urbana">Fauna urbana</label>
-  <select id="fauna_urbana" multiple></select>
-
-  <label for="tipo_de_luz">Tipo de luz</label>
-  <select id="tipo_de_luz" multiple></select>
-</div>
+<div id="selectors"></div>
 
 <hr>
 
@@ -104,6 +74,55 @@
 <h2 id="output">Prompt generado aparecerá aquí…</h2>
 
 <script>
+const variables = {
+  "MEDIO": [],
+  "TIPO DE VISTA": [],
+  "TIPO DE INTERVENCIÓN": [],
+  "DESCRIPTORES CONSTRUCTIVOS": [],
+  "BIOMA DISEÑADO": [],
+  "SITIO / CONTEXTO CLIMÁTICO": [],
+  "ELEMENTOS NATURALES DESTACADOS": [],
+  "SEÑALES DE USO HUMANO": [],
+  "FAUNA URBANA": [],
+  "TIPO DE LUZ": []
+};
+
+fetch("Prompts_Urbanal_tica_Final.csv")
+  .then(res => res.text())
+  .then(text => {
+    const rows = text.trim().split("\n").map(r => r.split(","));
+    const headers = rows[0];
+    headers.forEach((header, colIdx) => {
+      if (!variables[header]) return;
+      for (let i = 1; i < rows.length; i++) {
+        const value = rows[i][colIdx];
+        if (value && !variables[header].includes(value)) {
+          variables[header].push(value);
+        }
+      }
+    });
+    buildSelectors();
+  });
+
+function buildSelectors() {
+  const container = document.getElementById("selectors");
+  container.innerHTML = '';
+  for (const key in variables) {
+    const id = key.toLowerCase().replace(/\s+/g, "_").replace(/[ÁÉÍÓÚÜÑ]/g, c => ({Á:'A',É:'E',Í:'I',Ó:'O',Ú:'U',Ü:'U',Ñ:'N'}[c])).toLowerCase();
+    container.innerHTML += `<label for="${id}">${key}</label>`;
+    const select = document.createElement("select");
+    select.id = id;
+    select.multiple = true;
+    variables[key].forEach(option => {
+      const opt = document.createElement("option");
+      opt.value = option;
+      opt.innerText = option;
+      select.appendChild(opt);
+    });
+    container.appendChild(select);
+  }
+}
+
 function getSelectedValues(id, separator = ", ") {
   const select = document.getElementById(id);
   return Array.from(select.selectedOptions).map(opt => opt.value).join(separator);
@@ -111,9 +130,9 @@ function getSelectedValues(id, separator = ", ") {
 
 function buildPrompt() {
   const campos = [
-    "medio", "tipo_de_vista", "tipo_de_intervención", "descriptores_constructivos",
-    "bioma_diseñado", "sitio_/_contexto_climático", "elementos_naturales_destacados",
-    "señales_de_uso_humano", "fauna_urbana", "tipo_de_luz"
+    "medio", "tipo_de_vista", "tipo_de_intervencion", "descriptores_constructivos",
+    "bioma_disenado", "sitio___contexto_climatico", "elementos_naturales_destacados",
+    "senales_de_uso_humano", "fauna_urbana", "tipo_de_luz"
   ];
 
   const parts = campos.map(id => getSelectedValues(id)).filter(Boolean);
