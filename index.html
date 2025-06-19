@@ -54,9 +54,14 @@
     }
 
     function buildSelectors(vars) {
+      if (!vars || Object.keys(vars).length === 0) {
+        console.warn('buildSelectors: no vars to render');
+        return;
+      }
       const container = document.getElementById('selectors');
       container.innerHTML = '';
       Object.entries(vars).forEach(([hdr, opts]) => {
+        if (!Array.isArray(opts)) return;
         const id = normalizeId(hdr);
         const block = document.createElement('div');
         block.className = 'selector-block';
@@ -155,11 +160,16 @@
         transformHeader: h => h.replace(/"/g, '').trim(),
         transform: v => v.replace(/"/g, '').trim(),
         complete: ({ data, meta }) => {
+          if (!meta || !Array.isArray(meta.fields) || meta.fields.length === 0) {
+            console.error('Papa.parse: invalid meta.fields', meta);
+            return;
+          }
           const vars = {};
           meta.fields.forEach(hdr => vars[hdr] = []);
           data.forEach(row => {
             meta.fields.forEach(hdr => {
-              const v = row[hdr]; if (v && !vars[hdr].includes(v)) vars[hdr].push(v);
+              const v = row[hdr];
+              if (v && !vars[hdr].includes(v)) vars[hdr].push(v);
             });
           });
           buildSelectors(vars);
