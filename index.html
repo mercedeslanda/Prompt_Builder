@@ -9,6 +9,8 @@
     #selectors label, label[for="params"] { display: block; font-weight: bold; text-transform: uppercase; margin: 20px 0 4px; }
     #selectors select, #params { height: 200px; overflow-y: auto; }
     button { margin-top: 12px; padding: 10px 16px; font-size: 1rem; cursor: pointer; }
+    .add-btn { display: inline-block; font-size: 0.85rem; margin-bottom: 8px; color: #0066cc; background: none; border: none; text-decoration: underline; cursor: pointer; }
+    .new-option-input-wrapper { display: none; margin-top: 4px; }
     h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.2rem; white-space: pre-wrap; }
     .preview-container img { max-width: 120px; margin: 4px; display: inline-block; }
     hr { margin: 24px 0; border: none; border-top: 1px solid #eee; }
@@ -16,23 +18,19 @@
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-  <h1>Imaginar el Futuro del Territorio a 25 años</h1>
   <p>Generador de Prompts – URBANALÍTICA</p>
   <p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
 
-  <!-- Imagen guía -->
-  <label for="iw">🖼️ Imagen guía (ajusta con <code>--iw</code>)</label>
+  <label for="iw">🖼️ Imagen guía (<code>--iw</code>)</label>
   <input type="text" id="iw" placeholder="Pega enlace de imagen">
   <div id="preview_iw" class="preview-container"></div>
 
   <hr>
 
-  <!-- Categorías dinámicas CSV -->
   <div id="selectors"></div>
 
   <hr>
 
-  <!-- Estilo visual y objeto exacto -->
   <label for="sref">🎨 Estilo visual (<code>--sref</code>)</label>
   <input type="text" id="sref" placeholder="Pega enlace de estilo visual">
   <div id="preview_sref" class="preview-container"></div>
@@ -46,7 +44,6 @@
 
   <hr>
 
-  <!-- Parámetros Midjourney -->
   <label for="params">⚙️ Parámetros Midjourney</label>
   <select id="params" multiple>
     <option value="--ar 16:9">--ar 16:9 (aspect ratio horizontal)</option>
@@ -63,7 +60,6 @@
     <option value="--hd">--hd (alta resolución)</option>
   </select>
 
-  <!-- Botones y salida -->
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
   <button onclick="copyPrompt()">📋 Copiar Prompt</button>
 
@@ -71,16 +67,10 @@
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
-    // Normaliza texto a id válido
     function normalizeId(text) {
-      return text.normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
-        .replace(/[^\w]+/g, '_')
-        .replace(/^_|_$/g, '')
-        .toLowerCase();
+      return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
     }
 
-    // Previsualización de imágenes
     ['iw','sref','oref'].forEach(id => {
       const inp = document.getElementById(id);
       const container = document.getElementById('preview_' + id);
@@ -90,19 +80,47 @@
       });
     });
 
-    // Carga y crea selectores desde CSV
     function buildSelectors(vars) {
       const c = document.getElementById('selectors'); c.innerHTML = '';
       Object.entries(vars).forEach(([hdr, opts]) => {
         const id = normalizeId(hdr);
-        c.insertAdjacentHTML('beforeend', `<label for="${id}">${hdr}</label><select id="${id}" multiple></select>`);
+        c.insertAdjacentHTML('beforeend', `
+          <label for="${id}">${hdr}</label>
+          <div class="selector-container">
+            <select id="${id}" multiple></select>
+            <button class="add-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">(quiero otra opción)</button>
+            <div class="new-option-input-wrapper">
+              <input type="text" class="new-option-input" placeholder="Agregar nueva opción..." data-category="${hdr}" list="list-${id}" onblur="handleNewOption('${id}', this)">
+            </div>
+            <datalist id="list-${id}">${opts.map(v => `<option value="${v}">`).join('')}</datalist>
+          </div>
+        `);
         const sel = document.getElementById(id);
         opts.forEach(v => sel.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
       });
     }
 
-    // Parse CSV
-    Papa.parse('https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv', {
+    function handleNewOption(selectorId, inputEl) {
+      const val = inputEl.value.trim();
+      if (!val) return;
+      const select = document.getElementById(selectorId);
+      const datalist = document.getElementById(`list-${selectorId}`);
+      const exists = Array.from(select.options).some(opt => opt.value === val);
+      if (!exists) {
+        const opt = new Option(val, val, true, true);
+        select.add(opt);
+        datalist.insertAdjacentHTML('beforeend', `<option value="${val}">`);
+      } else {
+        Array.from(select.options).forEach(opt => {
+          if (opt.value === val) opt.selected = true;
+        });
+      }
+      inputEl.closest('.new-option-input-wrapper').style.display = 'none';
+      inputEl.closest('.selector-container').querySelector('.add-btn').style.display = 'inline-block';
+      inputEl.value = '';
+    }
+
+    Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv', {
       download: true, header: true, skipEmptyLines: true,
       transformHeader: h => h.replace(/"/g,'').trim(),
       transform: v => v.replace(/"/g,'').trim(),
@@ -114,13 +132,57 @@
       }
     });
 
-    // Obtiene valores seleccionados
     function getSelected(id, sep=' ') {
       const sel = document.getElementById(id);
       return sel ? Array.from(sel.selectedOptions).map(o=>o.value).join(sep) : '';
     }
 
-    // Genera prompt
+    function getNewOptions() {
+      const inputs = document.querySelectorAll('.new-option-input');
+      const additions = {};
+      inputs.forEach(inp => {
+        const val = inp.value.trim();
+        const cat = inp.dataset.category;
+        if (val) additions[cat] = val;
+      });
+      return additions;
+    }
+
+    function sendPromptToSheet(prompt, newOptions) {
+  fetch("https://script.google.com/a/macros/urbanalitica.com/s/AKfycbwk9c4zqjlkl23fJkhvzHaTFAbB7uKPhgYVSDPRpBOk5oo5bkV1iKKGn2_kd-7Hc6cNKw/exec", {
+    method: "POST",
+    body: JSON.stringify({ prompt, newOptions }),
+    headers: { "Content-Type": "application/json" }
+  })
+  .then(r => r.text())
+  .then(msg => {
+    console.log("Datos enviados a Sheets:", msg);
+    const confirm = document.createElement('div');
+confirm.textContent = '✅ Prompt guardado con éxito';
+confirm.style.background = 'transparent';
+confirm.style.display = 'inline-block';
+confirm.style.padding = '4px 8px';
+confirm.style.borderRadius = '4px';
+confirm.style.backdropFilter = 'blur(2px)';
+confirm.style.border = 'none';
+confirm.style.padding = '0';
+confirm.style.margin = '12px 0 0 0';
+confirm.style.color = '#ffffff';
+confirm.style.fontWeight = 'bold';
+confirm.style.maxWidth = '100%';
+confirm.style.wordWrap = 'break-word';
+confirm.style.textAlign = 'left';
+confirm.style.fontSize = '1rem';
+confirm.style.pointerEvents = 'none';
+confirm.style.boxShadow = 'none';
+confirm.style.position = 'relative';
+confirm.style.zIndex = '1';
+document.getElementById('selectors').appendChild(confirm);
+setTimeout(() => confirm.remove(), 5000);
+  })
+  .catch(err => console.error("Error al enviar:", err));
+    }
+
     function buildPrompt() {
       let prompt = '';
       const iw = document.getElementById('iw').value.trim();
@@ -145,9 +207,11 @@
 
       document.getElementById('output').textContent = prompt;
       document.getElementById('outputText').value = prompt;
+
+      const newOptions = getNewOptions();
+      sendPromptToSheet(prompt, newOptions);
     }
 
-    // Copiar prompt
     function copyPrompt() {
       navigator.clipboard.writeText(document.getElementById('outputText').value);
     }
