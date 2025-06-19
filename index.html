@@ -1,141 +1,205 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Generador de Prompts Urbanalítica</title>
-  <style>
-    body { font-family: sans-serif; margin: 40px; max-width: 800px; }
-    select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
-    button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
-    .preview-container img { max-width: 120px; margin: 4px; display: inline-block; }
-    .selector-block { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 12px; }
-    .add-option { display: flex; margin-top: 6px; }
-    .add-option input { flex: 1; margin-right: 6px; }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<meta charset="UTF-8">
+<title>Generador de Prompts Urbanalítica</title>
+<style>
+body { font-family: sans-serif; margin: 40px; max-width: 800px; }
+select, input[type="url"] { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
+button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
+h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
+label { font-weight: bold; display: block; margin-top: 10px; }
+small { display: block; margin-bottom: 5px; color: #555; font-style: italic; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 
-  <h1>Imaginar el Futuro del Territorio a 25 años</h1>
-  <p>Generador de Prompts __ URBANALÍTICA</p>
+<h1>Imaginar el Futuro del Territorio a 25 años</h1>
+<p>Generador de Prompts __ URBANALÍTICA</p>
+<p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
 
-  <!-- Imagen guía -->
-  <label for="iw">🖼️ Imagen guía (<code>--iw</code>)</label>
-  <input type="text" id="iw" placeholder="URLs separadas por coma o espacio">
-  <div id="preview_iw" class="preview-container"></div>
+```
+<label for="iw">🖼️ Imagen guía.(<code>ajusta con --iw 100</code>)</label>
 
-   <!-- Selectores desde Google Sheets -->
-  <div id="selectors"></div>
-  
-  <!-- Estilo visual -->
-  <label for="sref">🎨 Estilo visual (<code>--sref</code>)</label>
-  <input type="text" id="sref" placeholder="URLs separadas por coma o espacio">
-  <div id="preview_sref" class="preview-container"></div>
+```
 
-  <!-- Objeto estilo exacto -->
-  <label for="oref">🎨 Objeto estilo exacto (<code>--oref</code>)</label>
-  <input type="text" id="oref" placeholder="URLs separadas por coma o espacio">
-  <div id="preview_oref" class="preview-container"></div>
-
-
-
-  <!-- Moodboards -->
-  <label for="moodboard">🎨 Moodboards (<code>--p</code>)</label>
-  <input type="text" id="moodboard" placeholder="--p ejemplo">
-
-  <!-- Generación y guardado -->
-  <button onclick="buildPrompt()">🔁 Generar Prompt</button>
-  <button onclick="copyAndSavePrompt()">📋 Copiar + Guardar</button>
-
-  <label for="output">Prompt generado (editable):</label>
-  <textarea id="output" rows="4" placeholder="Tu prompt..."></textarea>
+<input type="url" id="iw" placeholder="https://...">
+<!-- aquí va el preview -->
+<img id="preview_iw" style="max-width:200px; display:block; margin-bottom:12px;" />
 
 <script>
-// URL al CSV exportado de Google Sheets (publicado como CSV)
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv';
-const SHEET_ADD = 'https://script.google.com/macros/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
-const SHEET_SAVE = 'https://script.google.com/macros/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
+document.getElementById('iw').addEventListener('input', function() {
+const url = this.value.trim();
+const img = document.getElementById('preview_iw');
+if (url) {
+img.src = url;
+img.style.display = 'block';
+} else {
+img.style.display = 'none';
+}
+});
+</script>
 
+<div id="selectors"></div>
+
+<hr>
+
+<label for="sref">🎨 Estilo visual. (<code>--sref, ajusta con --sw 100</code>)</label>
+<input type="url" id="sref" placeholder="https://...">
+<!-- aquí va el preview -->
+<img id="preview_sref" style="max-width:200px; display:none; margin-bottom:12px;">
+
+<label for="oref">🎨 Objeto y Estilo exactos. (<code>--oref, ajusta con --ow 100</code>)</label>
+<input type="url" id="oref" placeholder="https://...">
+<!-- aquí va el preview -->
+<img id="preview_oref" style="max-width:200px; display:none; margin-bottom:12px;">
+
+<script>
+['sref','oref'].forEach(id => {
+const inp = document.getElementById(id);
+const img = document.getElementById('preview_' + id);
+inp.addEventListener('input', () => {
+const url = inp.value.trim();
+if (url) {
+img.src = url;
+img.style.display = 'block';
+} else {
+img.style.display = 'none';
+}
+});
+});
+</script>
+
+<label for="p">🎨 Moodboards. (<code>--p</code>)</label>
+<input type="code" id="moodboard" placeholder="--p d19hjfk">
+
+<hr>
+
+<label for="params">⚙️ Parámetros Midjourney</label>
+<select id="params" multiple>
+<option value="--ar 16:9">--ar 16:9 (aspect ratio horizontal)</option>
+<option value="--style raw">--style raw (sin extras)</option>
+<option value="--stylize 500">--stylize 550 (estilización media)</option>
+<option value="--repeat 1">--repeat 1 (cambia a 2 para ahorrar tiempo)</option>
+<option value="--seed 123">--seed 123 (para series consistentes)</option>
+<option value="--weird 1000">--weird 1000 (ajusta a 0 para una imagen muy seria)</option>
+<option value="--chaos 50">--chaos 50 (que tanto varian tus cuatro imágenes por iteración?)</option>
+<option value="--tile">--tile (para imágenes mosaico) </option>
+</select>
+
+<button onclick="buildPrompt()">🔁 Generar Prompt</button>
+<button onclick="copyPrompt()">📋 Copiar Prompt</button>
+
+<h2 id="output">Prompt generado aparecerá aquí…</h2>
+
+<script>
 function normalizeId(text) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+return text
+.normalize('NFD')
+.replace(/[\u0300-\u036f]/g, '')
+.replace(/[^a-zA-Z0-9]+/g, '*')
+.replace(/^*|_$/g, '')
+.toLowerCase();
 }
 
-function addOption(header, value) {
-  if (!value) return;
-  fetch(SHEET_ADD, {
-    method: 'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({header, value})
-  });
-}
-
-function buildSelectors(data) {
-  const container = document.getElementById('selectors');
-  container.innerHTML='';
-  Object.keys(data).forEach(header => {
-    const id = normalizeId(header);
-    const block = document.createElement('div'); block.className='selector-block';
-    block.innerHTML = `
-      <label for="${id}">${header}</label>
-      <select id="${id}" multiple></select>
-      <div class="add-option">
-        <input type="text" id="new_${id}" placeholder="Agregar a ${header}">
-        <button onclick="addOption('${header}', document.getElementById('new_${id}').value)">+ Añadir</button>
-      </div>
-    `;
-    container.appendChild(block);
-    const sel = block.querySelector('select');
-    data[header].forEach(val => {
-      const opt = document.createElement('option'); opt.value=val; opt.innerText=val;
-      sel.appendChild(opt);
+```
+function buildSelectors(vars) {
+  const c = document.getElementById("selectors");
+  c.innerHTML = '';
+  Object.entries(vars).forEach(([hdr, opts]) => {
+    const id = normalizeId(hdr);
+    c.innerHTML += `<label for="${id}">${hdr}</label>`;
+    const sel = document.createElement("select");
+    sel.id = id; sel.multiple = true;
+    opts.forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; o.innerText = v;
+      sel.appendChild(o);
     });
+    c.appendChild(sel);
   });
 }
 
-function setupPreview(id) {
-  const inp=document.getElementById(id), cont=document.getElementById('preview_'+id);
-  inp.addEventListener('input',()=>{
-    cont.innerHTML='';
-    inp.value.split(/[,\s]+/).filter(u=>u).forEach(u=>{
-      const img=document.createElement('img'); img.src=u; img.onerror=()=>img.remove();
-      cont.appendChild(img);
-    });
-  });
+function getSelected(id, sep = ", ") {
+  const s = document.getElementById(id);
+  return s ? Array.from(s.selectedOptions).map(o => o.value).join(sep) : '';
 }
 
 function buildPrompt() {
-  const parts=[];
-  ['iw'].forEach(id=>document.getElementById(id).value.split(/[,\s]+/).filter(u=>u).forEach(u=>parts.push(u)));
-  document.querySelectorAll('#selectors select').forEach(sel=>{
-    Array.from(sel.selectedOptions).forEach(o=>parts.push(o.value));
-  });
-  const mood=document.getElementById('moodboard').value; if(mood) parts.push(mood);
-  document.getElementById('output').value=parts.join(' ');
+
+```
+
+const parts = [];
+// — tus otras partes (iw, selectors…) —
+const iw = document.getElementById("iw").value.trim();
+if (iw) parts.push(iw);
+
+document.querySelectorAll("#selectors select").forEach(sel => {
+const v = getSelected([sel.id](http://sel.id/));
+if (v) parts.push(v);
+});
+
+// — aquí armamos el sufijo —
+let suf = '';
+const sref = document.getElementById("sref").value.trim();
+const oref = document.getElementById("oref").value.trim();
+if (sref) suf +=  `--sref ${sref} --sw 50`;
+if (oref) suf +=  `--oref ${oref} --ow 60`;
+if (iw)   suf +=  `--iw 1`;
+
+// **nuevo bloque**: recoge el moodboard
+const mood = document.getElementById("moodboard").value.trim();
+if (mood) suf +=  `${mood}`;
+
+// luego params existentes
+const prm = getSelected("params", " ");
+if (prm) suf +=  `${prm}`;
+
+// y finalmente lo juntas todo
+document.getElementById("output").innerText = parts.join(' ') + suf;
 }
 
-function copyAndSavePrompt(){
-  const t=document.getElementById('output').value;
-  navigator.clipboard.writeText(t);
-  fetch(SHEET_SAVE, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:t})});
-  alert('✅ Copiado y guardado');
+```
+function copyPrompt() {
+  const t = document.getElementById("output").innerText;
+  navigator.clipboard.writeText(t)
+    .then(() => alert("✅ Copiado"))
+    .catch(() => alert("❌ Error al copiar"));
 }
 
-// Inits: auto-setup previews for any input that has a preview container
-    document.querySelectorAll('.preview-container').forEach(cont => {
-      const id = cont.id.replace('preview_','');
-      setupPreview(id);
+// CSV RAW CORRECTO
+Papa.parse("<https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv>", {
+  download: true,
+  delimiter: ',',
+  quoteChar: '"',
+  header: true,
+  skipEmptyLines: true,
+  transformHeader: h => h.replace(/"/g,'').trim(),
+  transform: v => v.replace(/"/g,'').trim(),
+  complete: ({ data }) => {
+    if (data.length === 0) {
+      alert("⚠️ CSV vacío o malformado");
+      return;
+    }
+    const vars = {};
+    Object.keys(data[0]).forEach(h => vars[h] = []);
+    data.forEach(row => {
+      Object.entries(row).forEach(([h, v]) => {
+        if (v && !vars[h].includes(v)) vars[h].push(v);
+      });
     });
-
-    Papa.parse(CSV_URL, {(CSV_URL, {
-  download: true, header: true, skipEmptyLines: true,
-  complete: res => {
-    const data = {};
-    res.meta.fields.forEach(h=>data[h]=[]);
-    res.data.forEach(row=>res.meta.fields.forEach(h=>{
-      const v=row[h]; if(v && !data[h].includes(v)) data[h].push(v);
-    }));
-    buildSelectors(data);
+    buildSelectors(vars);
+    console.log("Primer row parseada:", data[0]);
+  },
+  error: err => {
+    console.error(err);
+    alert("❌ Error cargando CSV (revisa consola)");
   }
 });
+
+```
+
 </script>
 </body>
 </html>
