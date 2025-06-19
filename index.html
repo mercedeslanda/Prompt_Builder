@@ -6,6 +6,9 @@
   <style>
     body { font-family: sans-serif; margin: 40px; max-width: 800px; }
     select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
+    /* Estilo para listas dinámicas como cajas de texto scrollables */
+    #selectors label { display: block; font-weight: bold; text-transform: uppercase; margin: 16px 0 4px; }
+    #selectors select { height: 160px; overflow-y: auto; border: 1px solid #ccc; }
     button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
     h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
     label { font-weight: bold; display: block; margin-top: 10px; }
@@ -19,19 +22,24 @@
   <p>Generador de Prompts – URBANALÍTICA</p>
   <p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
 
+  <!-- Imagen guía -->
   <label for="iw">🖼️ Imagen guía (<code>--iw</code>)</label>
   <input type="text" id="iw" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_iw" class="preview-container"></div>
 
-  
+  <hr>
+
+  <!-- Selecciones dinámicas (categorías de CSV) -->
   <div id="selectors"></div>
 
+  <hr>
 
+  <!-- Estilo visual y objeto exacto -->
   <label for="sref">🎨 Estilo visual (<code>--sref</code>)</label>
   <input type="text" id="sref" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_sref" class="preview-container"></div>
 
-  <label for="oref">🖼️ Objeto y estilo exactos (<code>--oref</code>)</label>
+  <label for="oref">🎨 Objeto y estilo exactos (<code>--oref</code>)</label>
   <input type="text" id="oref" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_oref" class="preview-container"></div>
 
@@ -40,6 +48,7 @@
 
   <hr>
 
+  <!-- Parámetros Midjourney -->
   <label for="params">⚙️ Parámetros Midjourney</label>
   <select id="params" multiple>
     <option value="--ar 16:9">--ar 16:9 (aspect ratio horizontal)</option>
@@ -56,6 +65,7 @@
     <option value="--hd">--hd (alta resolución)</option>
   </select>
 
+  <!-- Botones y salida -->
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
   <button onclick="copyPrompt()">📋 Copiar Prompt</button>
 
@@ -63,7 +73,6 @@
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
-    // Normalize ID
     function normalizeId(text) {
       return text.normalize('NFD')
         .replace(/[̀-ͯ]/g, '')
@@ -72,12 +81,11 @@
         .toLowerCase();
     }
 
-    // Setup image previews
     ['iw','sref','oref'].forEach(id => {
       const inp = document.getElementById(id);
       const container = document.getElementById('preview_' + id);
       inp.addEventListener('input', () => {
-        const urls = inp.value.split(/[,\s]+/).filter(u => u);
+        const urls = inp.value.split(/[\s,]+/).filter(u => u);
         container.innerHTML = '';
         urls.forEach(u => {
           const img = document.createElement('img');
@@ -88,7 +96,6 @@
       });
     });
 
-    // Build dynamic selectors from CSV
     function buildSelectors(vars) {
       const container = document.getElementById('selectors');
       container.innerHTML = '';
@@ -100,51 +107,42 @@
         container.appendChild(label);
 
         const sel = document.createElement('select');
-        sel.id = id;
-        sel.multiple = true;
+        sel.id = id; sel.multiple = true;
         opts.forEach(v => {
           const opt = document.createElement('option');
-          opt.value = v;
-          opt.textContent = v;
+          opt.value = v; opt.textContent = v;
           sel.appendChild(opt);
         });
         container.appendChild(sel);
       });
     }
 
-    // Fetch CSV and initialize selectors
-    Papa.parse('https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/refs/heads/main/Prompts_Urbanal_tica_Final_.csv', {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
+    Papa.parse('https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv', {
+      download: true, header: true, skipEmptyLines: true,
       transformHeader: h => h.replace(/"/g,'').trim(),
       transform: v => v.replace(/"/g,'').trim(),
       complete: ({ data }) => {
         if (!data.length) return alert('CSV vacío o malformado');
         const vars = {};
         Object.keys(data[0]).forEach(h => vars[h] = []);
-        data.forEach(row => {
-          Object.entries(row).forEach(([h, v]) => {
-            if (v && !vars[h].includes(v)) vars[h].push(v);
-          });
-        });
+        data.forEach(row => Object.entries(row).forEach(([h,v]) => {
+          if (v && !vars[h].includes(v)) vars[h].push(v);
+        }));
         buildSelectors(vars);
       },
       error: err => alert('❌ Error cargando CSV: ' + err.message)
     });
 
-    // Get selected values helper
-    function getSelected(id, sep = ', ') {
+    function getSelected(id, sep = ' ') {
       const sel = document.getElementById(id);
       return sel ? Array.from(sel.selectedOptions).map(o => o.value).join(sep) : '';
     }
 
-    // Build prompt
     function buildPrompt() {
       const parts = [];
       ['iw','sref','oref'].forEach(id => {
         const txt = document.getElementById(id).value.trim();
-        if (txt) parts.push(...txt.split(/[,\s]+/));
+        if (txt) parts.push(...txt.split(/[\s,]+/));
       });
       document.querySelectorAll('#selectors select').forEach(sel => {
         const vals = getSelected(sel.id);
@@ -152,7 +150,7 @@
       });
       const mood = document.getElementById('moodboard').value.trim();
       if (mood) parts.push(mood);
-      const params = getSelected('params', ' ');
+      const params = getSelected('params');
       if (params) parts.push(params);
 
       const prompt = parts.join(' ');
@@ -160,7 +158,6 @@
       document.getElementById('outputText').value = prompt;
     }
 
-    // Copy prompt
     function copyPrompt() {
       const t = document.getElementById('outputText').value;
       navigator.clipboard.writeText(t)
