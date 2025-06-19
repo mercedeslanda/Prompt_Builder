@@ -197,13 +197,14 @@ setTimeout(() => confirm.remove(), 5000);
   .catch(err => console.error("Error al enviar:", err));
     }
 
+     <script>
     function buildPrompt() {
       let prompt = '';
       const iw = document.getElementById('iw').value.trim();
       if (iw) prompt += `${iw} `;
 
       document.querySelectorAll('#selectors select').forEach(sel => {
-        const vals = getSelected(sel.id);
+        const vals = Array.from(sel.selectedOptions).map(o => o.value).join(' ');
         if (vals) prompt += ` ${vals}`;
       });
 
@@ -216,18 +217,19 @@ setTimeout(() => confirm.remove(), 5000);
       const mood = document.getElementById('moodboard').value.trim();
       if (mood) prompt += ` ${mood}`;
 
-      const params = getSelected('params',' ');
+      const params = Array.from(document.getElementById('params').selectedOptions).map(o => o.value).join(' ');
       if (params) prompt += ` ${params}`;
 
       document.getElementById('output').textContent = prompt;
       document.getElementById('outputText').value = prompt;
-
-      const newOptions = getNewOptions();
-      sendPromptToSheet(prompt, newOptions);
     }
 
     function copyPrompt() {
-      navigator.clipboard.writeText(document.getElementById('outputText').value);
+      const text = document.getElementById('outputText');
+      text.select();
+      text.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      alert('Prompt copiado al portapapeles');
     }
   </script>
 </body>
