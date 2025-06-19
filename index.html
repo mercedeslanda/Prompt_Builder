@@ -5,45 +5,43 @@
   <title>Generador de Prompts Urbanalítica</title>
   <style>
     body { font-family: sans-serif; margin: 40px; max-width: 800px; }
-    select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
-    /* Estilo para listas dinámicas como cajas de texto scrollables */
-    #selectors label { display: block; font-weight: bold; text-transform: uppercase; margin: 16px 0 4px; }
-    #selectors select { height: 160px; overflow-y: auto; border: 1px solid #ccc; }
-    button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
-    h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.4rem; word-break: break-word; }
-    label { font-weight: bold; display: block; margin-top: 10px; }
+    select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 8px; font-size: 1rem; border: 1px solid #ccc; box-sizing: border-box; }
+    #selectors label, label[for="params"] { display: block; font-weight: bold; text-transform: uppercase; margin: 20px 0 4px; }
+    #selectors select, #params { height: 200px; overflow-y: auto; }
+    button { margin-top: 12px; padding: 10px 16px; font-size: 1rem; cursor: pointer; }
+    h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.2rem; white-space: pre-wrap; }
     .preview-container img { max-width: 120px; margin: 4px; display: inline-block; }
+    hr { margin: 24px 0; border: none; border-top: 1px solid #eee; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
 <body>
-
   <h1>Imaginar el Futuro del Territorio a 25 años</h1>
   <p>Generador de Prompts – URBANALÍTICA</p>
   <p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
 
   <!-- Imagen guía -->
-  <label for="iw">🖼️ Imagen guía (<code>--iw</code>)</label>
-  <input type="text" id="iw" placeholder="Pega enlaces separados por espacio o coma">
+  <label for="iw">🖼️ Imagen guía (ajusta con <code>--iw</code>)</label>
+  <input type="text" id="iw" placeholder="Pega enlace de imagen">
   <div id="preview_iw" class="preview-container"></div>
 
   <hr>
 
-  <!-- Selecciones dinámicas (categorías de CSV) -->
+  <!-- Categorías dinámicas CSV -->
   <div id="selectors"></div>
 
   <hr>
 
   <!-- Estilo visual y objeto exacto -->
   <label for="sref">🎨 Estilo visual (<code>--sref</code>)</label>
-  <input type="text" id="sref" placeholder="Pega enlaces separados por espacio o coma">
+  <input type="text" id="sref" placeholder="Pega enlace de estilo visual">
   <div id="preview_sref" class="preview-container"></div>
 
   <label for="oref">🎨 Objeto y estilo exactos (<code>--oref</code>)</label>
-  <input type="text" id="oref" placeholder="Pega enlaces separados por espacio o coma">
+  <input type="text" id="oref" placeholder="Pega enlace de objeto/estilo exacto">
   <div id="preview_oref" class="preview-container"></div>
 
-  <label for="moodboard">🎭 Moodboard (<code>--p</code>)</label>
+  <label for="moodboard">🎭 Moodboards (<code>--p</code>)</label>
   <input type="text" id="moodboard" placeholder="--p <ID moodboard>">
 
   <hr>
@@ -73,98 +71,86 @@
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
+    // Normaliza texto a id válido
     function normalizeId(text) {
       return text.normalize('NFD')
         .replace(/[̀-ͯ]/g, '')
-        .replace(/[^a-zA-Z0-9]+/g, '_')
+        .replace(/[^\w]+/g, '_')
         .replace(/^_|_$/g, '')
         .toLowerCase();
     }
 
+    // Previsualización de imágenes
     ['iw','sref','oref'].forEach(id => {
       const inp = document.getElementById(id);
       const container = document.getElementById('preview_' + id);
       inp.addEventListener('input', () => {
-        const urls = inp.value.split(/[\s,]+/).filter(u => u);
-        container.innerHTML = '';
-        urls.forEach(u => {
-          const img = document.createElement('img');
-          img.src = u;
-          img.onerror = () => img.remove();
-          container.appendChild(img);
-        });
+        const url = inp.value.trim();
+        container.innerHTML = url ? `<img src="${url}" onerror="this.remove()">` : '';
       });
     });
 
+    // Carga y crea selectores desde CSV
     function buildSelectors(vars) {
-      const container = document.getElementById('selectors');
-      container.innerHTML = '';
+      const c = document.getElementById('selectors'); c.innerHTML = '';
       Object.entries(vars).forEach(([hdr, opts]) => {
         const id = normalizeId(hdr);
-        const label = document.createElement('label');
-        label.setAttribute('for', id);
-        label.textContent = hdr;
-        container.appendChild(label);
-
-        const sel = document.createElement('select');
-        sel.id = id; sel.multiple = true;
-        opts.forEach(v => {
-          const opt = document.createElement('option');
-          opt.value = v; opt.textContent = v;
-          sel.appendChild(opt);
-        });
-        container.appendChild(sel);
+        c.insertAdjacentHTML('beforeend', `<label for="${id}">${hdr}</label><select id="${id}" multiple></select>`);
+        const sel = document.getElementById(id);
+        opts.forEach(v => sel.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
       });
     }
 
+    // Parse CSV
     Papa.parse('https://raw.githubusercontent.com/mercedeslanda/Prompt_Builder/main/Prompts_Urbanal_tica_Final_.csv', {
       download: true, header: true, skipEmptyLines: true,
       transformHeader: h => h.replace(/"/g,'').trim(),
       transform: v => v.replace(/"/g,'').trim(),
       complete: ({ data }) => {
-        if (!data.length) return alert('CSV vacío o malformado');
         const vars = {};
-        Object.keys(data[0]).forEach(h => vars[h] = []);
-        data.forEach(row => Object.entries(row).forEach(([h,v]) => {
-          if (v && !vars[h].includes(v)) vars[h].push(v);
-        }));
+        Object.keys(data[0]||{}).forEach(h => vars[h] = []);
+        data.forEach(r => Object.entries(r).forEach(([h,v]) => v && !vars[h].includes(v) && vars[h].push(v)));
         buildSelectors(vars);
-      },
-      error: err => alert('❌ Error cargando CSV: ' + err.message)
+      }
     });
 
-    function getSelected(id, sep = ' ') {
+    // Obtiene valores seleccionados
+    function getSelected(id, sep=' ') {
       const sel = document.getElementById(id);
-      return sel ? Array.from(sel.selectedOptions).map(o => o.value).join(sep) : '';
+      return sel ? Array.from(sel.selectedOptions).map(o=>o.value).join(sep) : '';
     }
 
+    // Genera prompt
     function buildPrompt() {
-      const parts = [];
-      ['iw','sref','oref'].forEach(id => {
-        const txt = document.getElementById(id).value.trim();
-        if (txt) parts.push(...txt.split(/[\s,]+/));
-      });
+      let prompt = '';
+      const iw = document.getElementById('iw').value.trim();
+      if (iw) prompt += `${iw} --iw 1`;
+
       document.querySelectorAll('#selectors select').forEach(sel => {
         const vals = getSelected(sel.id);
-        if (vals) parts.push(vals);
+        if (vals) prompt += ` ${vals}`;
       });
-      const mood = document.getElementById('moodboard').value.trim();
-      if (mood) parts.push(mood);
-      const params = getSelected('params');
-      if (params) parts.push(params);
 
-      const prompt = parts.join(' ');
+      const sref = document.getElementById('sref').value.trim();
+      if (sref) prompt += ` --sref ${sref} --sw 75`;
+
+      const oref = document.getElementById('oref').value.trim();
+      if (oref) prompt += ` --oref ${oref} --ow 50`;
+
+      const mood = document.getElementById('moodboard').value.trim();
+      if (mood) prompt += ` ${mood}`;
+
+      const params = getSelected('params',' ');
+      if (params) prompt += ` ${params}`;
+
       document.getElementById('output').textContent = prompt;
       document.getElementById('outputText').value = prompt;
     }
 
+    // Copiar prompt
     function copyPrompt() {
-      const t = document.getElementById('outputText').value;
-      navigator.clipboard.writeText(t)
-        .then(() => alert('✅ Copiado'))
-        .catch(() => alert('❌ Error al copiar'));
+      navigator.clipboard.writeText(document.getElementById('outputText').value);
     }
   </script>
-
 </body>
 </html>
