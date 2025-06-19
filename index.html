@@ -124,7 +124,7 @@
     function buildPrompt() {
       let prompt = '';
       const iw = document.getElementById('iw').value.trim();
-      if (iw) prompt += `${iw} --iw 1`;
+      if (iw) prompt += `${iw} `;
 
       document.querySelectorAll('#selectors select').forEach(sel => {
         const vals = getSelected(sel.id);
