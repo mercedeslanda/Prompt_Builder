@@ -24,6 +24,9 @@
   <input type="text" id="iw" placeholder="URLs separadas por coma o espacio">
   <div id="preview_iw" class="preview-container"></div>
 
+   <!-- Selectores desde Google Sheets -->
+  <div id="selectors"></div>
+  
   <!-- Estilo visual -->
   <label for="sref">🎨 Estilo visual (<code>--sref</code>)</label>
   <input type="text" id="sref" placeholder="URLs separadas por coma o espacio">
@@ -34,8 +37,7 @@
   <input type="text" id="oref" placeholder="URLs separadas por coma o espacio">
   <div id="preview_oref" class="preview-container"></div>
 
-  <!-- Selectores desde Google Sheets -->
-  <div id="selectors"></div>
+
 
   <!-- Moodboards -->
   <label for="moodboard">🎨 Moodboards (<code>--p</code>)</label>
@@ -49,8 +51,10 @@
   <textarea id="output" rows="4" placeholder="Tu prompt..."></textarea>
 
 <script>
+// URL al CSV exportado de Google Sheets (publicado como CSV)
 const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv';
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
+const SHEET_ADD = 'https://script.google.com/macros/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
+const SHEET_SAVE = 'https://script.google.com/macros/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
 
 function normalizeId(text) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
@@ -58,20 +62,18 @@ function normalizeId(text) {
 
 function addOption(header, value) {
   if (!value) return;
-  fetch(SHEET_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ header, value })
+  fetch(SHEET_ADD, {
+    method: 'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({header, value})
   });
 }
 
 function buildSelectors(data) {
   const container = document.getElementById('selectors');
-  container.innerHTML = '';
+  container.innerHTML='';
   Object.keys(data).forEach(header => {
     const id = normalizeId(header);
-    const block = document.createElement('div');
-    block.className = 'selector-block';
+    const block = document.createElement('div'); block.className='selector-block';
     block.innerHTML = `
       <label for="${id}">${header}</label>
       <select id="${id}" multiple></select>
@@ -83,86 +85,56 @@ function buildSelectors(data) {
     container.appendChild(block);
     const sel = block.querySelector('select');
     data[header].forEach(val => {
-      const opt = document.createElement('option');
-      opt.value = val; opt.innerText = val;
+      const opt = document.createElement('option'); opt.value=val; opt.innerText=val;
       sel.appendChild(opt);
     });
   });
 }
 
 function setupPreview(id) {
-  const inp = document.getElementById(id);
-  const cont = document.getElementById('preview_' + id);
-  inp.addEventListener('input', () => {
-    cont.innerHTML = '';
-    inp.value.split(/[,\s]+/)
-      .filter(u => u)
-      .forEach(u => {
-        const img = document.createElement('img');
-        img.src = u;
-        img.onerror = () => img.remove();
-        cont.appendChild(img);
-      });
+  const inp=document.getElementById(id), cont=document.getElementById('preview_'+id);
+  inp.addEventListener('input',()=>{
+    cont.innerHTML='';
+    inp.value.split(/[,\s]+/).filter(u=>u).forEach(u=>{
+      const img=document.createElement('img'); img.src=u; img.onerror=()=>img.remove();
+      cont.appendChild(img);
+    });
   });
 }
 
 function buildPrompt() {
-  const parts = [];
-  ['iw', 'sref', 'oref'].forEach(id => {
-    document.getElementById(id).value
-      .split(/[,\s]+/)
-      .filter(u => u)
-      .forEach(u => parts.push(u));
+  const parts=[];
+  ['iw'].forEach(id=>document.getElementById(id).value.split(/[,\s]+/).filter(u=>u).forEach(u=>parts.push(u)));
+  document.querySelectorAll('#selectors select').forEach(sel=>{
+    Array.from(sel.selectedOptions).forEach(o=>parts.push(o.value));
   });
-  document.querySelectorAll('#selectors select').forEach(sel => {
-    Array.from(sel.selectedOptions).forEach(o => parts.push(o.value));
-  });
-  const mood = document.getElementById('moodboard').value;
-  if (mood) parts.push(mood);
-  document.getElementById('output').value = parts.join(' ');
+  const mood=document.getElementById('moodboard').value; if(mood) parts.push(mood);
+  document.getElementById('output').value=parts.join(' ');
 }
 
-function copyAndSavePrompt() {
-  const promptText = document.getElementById('output').value;
-  navigator.clipboard.writeText(promptText);
-  fetch(SHEET_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: promptText })
-  });
-  alert('✅ Prompt copiado y guardado');
+function copyAndSavePrompt(){
+  const t=document.getElementById('output').value;
+  navigator.clipboard.writeText(t);
+  fetch(SHEET_SAVE, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:t})});
+  alert('✅ Copiado y guardado');
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  // Inicializar previews
-  ['iw', 'sref', 'oref'].forEach(setupPreview);
-  // Parsear CSV y construir selectores
-  Papa.parse(CSV_URL, {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: h => h.replace(/"/g, '').trim(),
-    transform: v => v.replace(/"/g, '').trim(),
-    complete: res => {
-      if (!res.meta || !Array.isArray(res.meta.fields)) {
-        console.error('CSV parse failed', res);
-        return;
-      }
-      const data = {};
-      res.meta.fields.forEach(h => data[h] = []);
-      res.data.forEach(row => {
-        res.meta.fields.forEach(hdr => {
-          const v = row[hdr];
-          if (v && !data[hdr].includes(v)) data[hdr].push(v);
-        });
-      });
-      buildSelectors(data);
-    },
-    error: err => {
-      console.error('Papa.parse error:', err);
-      alert('Error cargando CSV');
-    }
-  });
+// Inits: auto-setup previews for any input that has a preview container
+    document.querySelectorAll('.preview-container').forEach(cont => {
+      const id = cont.id.replace('preview_','');
+      setupPreview(id);
+    });
+
+    Papa.parse(CSV_URL, {(CSV_URL, {
+  download: true, header: true, skipEmptyLines: true,
+  complete: res => {
+    const data = {};
+    res.meta.fields.forEach(h=>data[h]=[]);
+    res.data.forEach(row=>res.meta.fields.forEach(h=>{
+      const v=row[h]; if(v && !data[h].includes(v)) data[h].push(v);
+    }));
+    buildSelectors(data);
+  }
 });
 </script>
 </body>
