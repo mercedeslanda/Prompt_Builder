@@ -42,7 +42,7 @@
   <textarea id="output" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
-    const SHEET_URL_ADD_OPTION = 'https://script.google.com/macros/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
+    const SHEET_URL_ADD_OPTION = 'https://script.google.com/a/macros/urbanalitica.com/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
     const SHEET_URL_SAVE_PROMPT = 'https://script.google.com/macros/library/d/1nsMORaQ4tU2F5qZjZ1rihCVvXpLvwl4IObmx_LUteXASTCvxwT4rJhNk/1';
 
     function normalizeId(text) {
@@ -60,23 +60,18 @@
         const id = normalizeId(hdr);
         const block = document.createElement('div');
         block.className = 'selector-block';
-        // label
         const lbl = document.createElement('label');
         lbl.htmlFor = id;
         lbl.innerText = hdr;
         block.appendChild(lbl);
-        // select
         const sel = document.createElement('select');
         sel.id = id;
         sel.multiple = true;
         opts.forEach(v => {
-          const o = document.createElement('option');
-          o.value = v;
-          o.innerText = v;
+          const o = document.createElement('option'); o.value = v; o.innerText = v;
           sel.appendChild(o);
         });
         block.appendChild(sel);
-        // add new option
         const addOptDiv = document.createElement('div');
         addOptDiv.className = 'add-option';
         addOptDiv.innerHTML = `
@@ -114,16 +109,14 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ header: selectorId, value })
       })
-        .then(res => res.json())
-        .then(() => {
-          const sel = document.getElementById(selectorId);
-          const opt = document.createElement('option');
-          opt.value = value;
-          opt.innerText = value;
-          sel.appendChild(opt);
-          document.getElementById('new_' + selectorId).value = '';
-        })
-        .catch(console.error);
+      .then(res => res.json())
+      .then(() => {
+        const sel = document.getElementById(selectorId);
+        const opt = document.createElement('option'); opt.value = value; opt.innerText = value;
+        sel.appendChild(opt);
+        document.getElementById('new_' + selectorId).value = '';
+      })
+      .catch(console.error);
     }
 
     function buildPrompt() {
@@ -136,8 +129,7 @@
         const v = getSelected(sel.id, ' ');
         if (v) parts.push(v);
       });
-      const mood = document.getElementById('moodboard').value.trim();
-      if (mood) parts.push(mood);
+      const mood = document.getElementById('moodboard').value.trim(); if (mood) parts.push(mood);
       document.getElementById('output').value = parts.join(' ');
     }
 
@@ -163,40 +155,16 @@
         transformHeader: h => h.replace(/"/g, '').trim(),
         transform: v => v.replace(/"/g, '').trim(),
         complete: ({ data, meta }) => {
-          console.log('CSV headers:', meta.fields);
-          console.log('CSV rows:', data);
-          if (!data.length) {
-            alert('CSV malformado o ruta incorrecta');
-            return;
-          }
           const vars = {};
-          // Inicializar arrays para cada header encontrado
           meta.fields.forEach(hdr => vars[hdr] = []);
           data.forEach(row => {
             meta.fields.forEach(hdr => {
-              const v = row[hdr];
-              if (v && !vars[hdr].includes(v)) vars[hdr].push(v);
+              const v = row[hdr]; if (v && !vars[hdr].includes(v)) vars[hdr].push(v);
             });
           });
-          console.log('Parsed selectors:', vars);
           buildSelectors(vars);
         },
-        error: err => {
-          console.error('Papa.parse error:', err);
-          alert('Error cargando CSV, revisa consola');
-        }
-      });
-          const vars = {};
-          Object.keys(data[0]).forEach(h => vars[h] = []);
-          data.forEach(row => Object.entries(row).forEach(([h, v]) => {
-            if (v && !vars[h].includes(v)) vars[h].push(v);
-          }));
-          buildSelectors(vars);
-        },
-        error: err => {
-          console.error(err);
-          alert('Error cargando CSV');
-        }
+        error: err => { console.error('Papa.parse error:', err); alert('Error cargando CSV'); }
       });
     });
   </script>
