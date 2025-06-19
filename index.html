@@ -23,9 +23,21 @@
   <label for="iw">🖼️ Imagen guía (<code>--iw</code>)</label>
   <input type="text" id="iw" placeholder="URLs separadas por coma o espacio">
   <div id="preview_iw" class="preview-container"></div>
-  
-  <!-- Selectores desde Google Sheets -->
+
+   <!-- Selectores desde Google Sheets -->
   <div id="selectors"></div>
+  
+  <!-- Estilo visual -->
+  <label for="sref">🎨 Estilo visual (<code>--sref</code>)</label>
+  <input type="text" id="sref" placeholder="URLs separadas por coma o espacio">
+  <div id="preview_sref" class="preview-container"></div>
+
+  <!-- Objeto estilo exacto -->
+  <label for="oref">🎨 Objeto estilo exacto (<code>--oref</code>)</label>
+  <input type="text" id="oref" placeholder="URLs separadas por coma o espacio">
+  <div id="preview_oref" class="preview-container"></div>
+
+
 
   <!-- Moodboards -->
   <label for="moodboard">🎨 Moodboards (<code>--p</code>)</label>
@@ -107,9 +119,13 @@ function copyAndSavePrompt(){
   alert('✅ Copiado y guardado');
 }
 
-// Inits
-['iw'].forEach(setupPreview);
-Papa.parse(CSV_URL, {
+// Inits: auto-setup previews for any input that has a preview container
+    document.querySelectorAll('.preview-container').forEach(cont => {
+      const id = cont.id.replace('preview_','');
+      setupPreview(id);
+    });
+
+    Papa.parse(CSV_URL, {(CSV_URL, {
   download: true, header: true, skipEmptyLines: true,
   complete: res => {
     const data = {};
