@@ -8,8 +8,8 @@
     select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 1rem; }
     button { margin-top: 10px; padding: 10px; font-size: 1rem; cursor: pointer; }
     .preview-container img { max-width: 120px; margin: 4px; display: inline-block; }
-    .selector-block { margin-bottom: 20px; }
-    .add-option { display: flex; margin-top: 4px; }
+    .selector-block { margin-bottom: 20px; border-bottom: 1px solid #ddd; padding-bottom: 12px; }
+    .add-option { display: flex; margin-top: 6px; }
     .add-option input { flex: 1; margin-right: 6px; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -20,163 +20,106 @@
   <p>Generador de Prompts __ URBANALÍTICA</p>
 
   <!-- Imagen guía -->
-  <label for="iw">🖼️ Imagen guía. (<code>--iw 100</code>)</label>
-  <input type="text" id="iw" placeholder="Pega enlaces separados por espacio o coma">
+  <label for="iw">🖼️ Imagen guía (<code>--iw</code>)</label>
+  <input type="text" id="iw" placeholder="URLs separadas por coma o espacio">
   <div id="preview_iw" class="preview-container"></div>
-
-  <!-- Zona de selectores dinámicos -->
+  
+  <!-- Selectores desde Google Sheets -->
   <div id="selectors"></div>
-  <hr>
 
   <!-- Moodboards -->
-  <label for="moodboard">🎨 Moodboards. (<code>--p</code>)</label>
-  <input type="text" id="moodboard" placeholder="--p d19hjfk">
+  <label for="moodboard">🎨 Moodboards (<code>--p</code>)</label>
+  <input type="text" id="moodboard" placeholder="--p ejemplo">
 
-  <hr>
-
-  <!-- Área de generación y guardado -->
+  <!-- Generación y guardado -->
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
-  <button onclick="copyAndSavePrompt()">📋 Copiar + Guardar Prompt</button>
+  <button onclick="copyAndSavePrompt()">📋 Copiar + Guardar</button>
 
   <label for="output">Prompt generado (editable):</label>
-  <textarea id="output" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
+  <textarea id="output" rows="4" placeholder="Tu prompt..."></textarea>
 
-  <script>
-    const SHEET_URL_ADD_OPTION = 'https://script.google.com/a/macros/urbanalitica.com/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
-    const SHEET_URL_SAVE_PROMPT = 'https://script.google.com/macros/library/d/1nsMORaQ4tU2F5qZjZ1rihCVvXpLvwl4IObmx_LUteXASTCvxwT4rJhNk/1';
+<script>
+// URL al CSV exportado de Google Sheets (publicado como CSV)
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?output=csv';
+const SHEET_ADD = 'https://script.google.com/macros/s/AKfycbxlWowODLgms93HWLeL8v181a-L3RxM0qcohmoM1vO7FOY8Zqy8e_4Q_g8lOxOIS1BTPg/exec';
+const SHEET_SAVE = 'https://script.google.com/macros/library/d/1nsMORaQ4tU2F5qZjZ1rihCVvXpLvwl4IObmx_LUteXASTCvxwT4rJhNk/1';
 
-    function normalizeId(text) {
-      return text.normalize('NFD')
-                 .replace(/[\u0300-\u036f]/g, '')
-                 .replace(/[^a-zA-Z0-9]+/g, '_')
-                 .replace(/^_|_$/g, '')
-                 .toLowerCase();
-    }
+function normalizeId(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
 
-    function buildSelectors(vars) {
-      if (!vars || Object.keys(vars).length === 0) {
-        console.warn('buildSelectors: no vars to render');
-        return;
-      }
-      const container = document.getElementById('selectors');
-      container.innerHTML = '';
-      Object.entries(vars).forEach(([hdr, opts]) => {
-        if (!Array.isArray(opts)) return;
-        const id = normalizeId(hdr);
-        const block = document.createElement('div');
-        block.className = 'selector-block';
-        const lbl = document.createElement('label');
-        lbl.htmlFor = id;
-        lbl.innerText = hdr;
-        block.appendChild(lbl);
-        const sel = document.createElement('select');
-        sel.id = id;
-        sel.multiple = true;
-        opts.forEach(v => {
-          const o = document.createElement('option'); o.value = v; o.innerText = v;
-          sel.appendChild(o);
-        });
-        block.appendChild(sel);
-        const addOptDiv = document.createElement('div');
-        addOptDiv.className = 'add-option';
-        addOptDiv.innerHTML = `
-          <input type="text" id="new_${id}" placeholder="Agregar opción a ${hdr}...">
-          <button type="button" onclick="addOption('${id}', document.getElementById('new_${id}').value)">+ Añadir</button>
-        `;
-        block.appendChild(addOptDiv);
-        container.appendChild(block);
-      });
-    }
+function addOption(header, value) {
+  if (!value) return;
+  fetch(SHEET_ADD, {
+    method: 'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({header, value})
+  });
+}
 
-    function getSelected(id, sep = ' ') {
-      const s = document.getElementById(id);
-      return s ? Array.from(s.selectedOptions).map(o => o.value).join(sep) : '';
-    }
-
-    function setupPreview(id) {
-      const inp = document.getElementById(id);
-      const container = document.getElementById('preview_' + id);
-      inp.addEventListener('input', () => {
-        const urls = inp.value.split(/[\s,]+/).map(u => u.trim()).filter(u => u);
-        container.innerHTML = '';
-        urls.forEach(u => {
-          const img = document.createElement('img'); img.src = u;
-          img.onerror = () => img.remove();
-          container.appendChild(img);
-        });
-      });
-    }
-
-    function addOption(selectorId, value) {
-      if (!value) return;
-      fetch(SHEET_URL_ADD_OPTION, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ header: selectorId, value })
-      })
-      .then(res => res.json())
-      .then(() => {
-        const sel = document.getElementById(selectorId);
-        const opt = document.createElement('option'); opt.value = value; opt.innerText = value;
-        sel.appendChild(opt);
-        document.getElementById('new_' + selectorId).value = '';
-      })
-      .catch(console.error);
-    }
-
-    function buildPrompt() {
-      const parts = [];
-      ['iw','sref','oref'].forEach(id => {
-        const txt = document.getElementById(id).value.trim();
-        if (txt) txt.split(/[\s,]+/).filter(u => u).forEach(u => parts.push(u));
-      });
-      document.querySelectorAll('#selectors select').forEach(sel => {
-        const v = getSelected(sel.id, ' ');
-        if (v) parts.push(v);
-      });
-      const mood = document.getElementById('moodboard').value.trim(); if (mood) parts.push(mood);
-      document.getElementById('output').value = parts.join(' ');
-    }
-
-    function copyAndSavePrompt() {
-      const promptText = document.getElementById('output').value;
-      navigator.clipboard.writeText(promptText).catch(console.error);
-      fetch(SHEET_URL_SAVE_PROMPT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: promptText })
-      }).catch(console.error);
-      alert('✅ Prompt copiado y guardado');
-    }
-
-    ['iw','sref','oref'].forEach(setupPreview);
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv';
-      Papa.parse(CSV_URL, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: h => h.replace(/"/g, '').trim(),
-        transform: v => v.replace(/"/g, '').trim(),
-        complete: ({ data, meta }) => {
-          if (!meta || !Array.isArray(meta.fields) || meta.fields.length === 0) {
-            console.error('Papa.parse: invalid meta.fields', meta);
-            return;
-          }
-          const vars = {};
-          meta.fields.forEach(hdr => vars[hdr] = []);
-          data.forEach(row => {
-            meta.fields.forEach(hdr => {
-              const v = row[hdr];
-              if (v && !vars[hdr].includes(v)) vars[hdr].push(v);
-            });
-          });
-          buildSelectors(vars);
-        },
-        error: err => { console.error('Papa.parse error:', err); alert('Error cargando CSV'); }
-      });
+function buildSelectors(data) {
+  const container = document.getElementById('selectors');
+  container.innerHTML='';
+  Object.keys(data).forEach(header => {
+    const id = normalizeId(header);
+    const block = document.createElement('div'); block.className='selector-block';
+    block.innerHTML = `
+      <label for="${id}">${header}</label>
+      <select id="${id}" multiple></select>
+      <div class="add-option">
+        <input type="text" id="new_${id}" placeholder="Agregar a ${header}">
+        <button onclick="addOption('${header}', document.getElementById('new_${id}').value)">+ Añadir</button>
+      </div>
+    `;
+    container.appendChild(block);
+    const sel = block.querySelector('select');
+    data[header].forEach(val => {
+      const opt = document.createElement('option'); opt.value=val; opt.innerText=val;
+      sel.appendChild(opt);
     });
-  </script>
+  });
+}
+
+function setupPreview(id) {
+  const inp=document.getElementById(id), cont=document.getElementById('preview_'+id);
+  inp.addEventListener('input',()=>{
+    cont.innerHTML='';
+    inp.value.split(/[,\s]+/).filter(u=>u).forEach(u=>{
+      const img=document.createElement('img'); img.src=u; img.onerror=()=>img.remove();
+      cont.appendChild(img);
+    });
+  });
+}
+
+function buildPrompt() {
+  const parts=[];
+  ['iw'].forEach(id=>document.getElementById(id).value.split(/[,\s]+/).filter(u=>u).forEach(u=>parts.push(u)));
+  document.querySelectorAll('#selectors select').forEach(sel=>{
+    Array.from(sel.selectedOptions).forEach(o=>parts.push(o.value));
+  });
+  const mood=document.getElementById('moodboard').value; if(mood) parts.push(mood);
+  document.getElementById('output').value=parts.join(' ');
+}
+
+function copyAndSavePrompt(){
+  const t=document.getElementById('output').value;
+  navigator.clipboard.writeText(t);
+  fetch(SHEET_SAVE, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:t})});
+  alert('✅ Copiado y guardado');
+}
+
+// Inits
+['iw'].forEach(setupPreview);
+Papa.parse(CSV_URL, {
+  download: true, header: true, skipEmptyLines: true,
+  complete: res => {
+    const data = {};
+    res.meta.fields.forEach(h=>data[h]=[]);
+    res.data.forEach(row=>res.meta.fields.forEach(h=>{
+      const v=row[h]; if(v && !data[h].includes(v)) data[h].push(v);
+    }));
+    buildSelectors(data);
+  }
+});
+</script>
 </body>
 </html>
