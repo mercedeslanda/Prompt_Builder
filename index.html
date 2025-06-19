@@ -20,22 +20,13 @@
   <p>Generador de Prompts __ URBANALÍTICA</p>
 
   <!-- Imagen guía -->
-  <label for="iw">🖼️ Imagen guía. (<code>ajusta con --iw 100</code>)</label>
+  <label for="iw">🖼️ Imagen guía. (<code>--iw 100</code>)</label>
   <input type="text" id="iw" placeholder="Pega enlaces separados por espacio o coma">
   <div id="preview_iw" class="preview-container"></div>
 
+  <!-- Zona de selectores dinámicos -->
   <div id="selectors"></div>
   <hr>
-
-  <!-- Estilo visual -->
-  <label for="sref">🎨 Estilo visual. (<code>--sref</code>)</label>
-  <input type="text" id="sref" placeholder="Pega enlaces separados por espacio o coma">
-  <div id="preview_sref" class="preview-container"></div>
-
-  <!-- Objeto estilo exacto -->
-  <label for="oref">🎨 Objeto y estilo exactos. (<code>--oref</code>)</label>
-  <input type="text" id="oref" placeholder="Pega enlaces separados por espacio o coma">
-  <div id="preview_oref" class="preview-container"></div>
 
   <!-- Moodboards -->
   <label for="moodboard">🎨 Moodboards. (<code>--p</code>)</label>
@@ -43,10 +34,7 @@
 
   <hr>
 
-  <!-- Parámetros -->
-  <label for="params">⚙️ Parámetros Midjourney</label>
-  <div id="params_block" class="selector-block"></div>
-
+  <!-- Área de generación y guardado -->
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
   <button onclick="copyAndSavePrompt()">📋 Copiar + Guardar Prompt</button>
 
@@ -66,45 +54,37 @@
     }
 
     function buildSelectors(vars) {
-      const container = document.getElementById('params_block');
+      const container = document.getElementById('selectors');
       container.innerHTML = '';
-      // Insert the general params selector
-      const selParams = document.createElement('select');
-      selParams.id = 'params'; selParams.multiple = true;
-      vars['params'].forEach(v => {
-        const o = document.createElement('option'); o.value = v; o.innerText = v;
-        selParams.appendChild(o);
-      });
-      // Block for params
-      const block = document.createElement('div'); block.className = 'selector-block';
-      block.appendChild(selParams);
-      // Add-option for params
-      const addDiv = document.createElement('div'); addDiv.className = 'add-option';
-      addDiv.innerHTML = `
-        <input type="text" id="new_params" placeholder="Agregar parámetro...">
-        <button type="button" onclick="addOption('params', document.getElementById('new_params').value)">+ Añadir</button>
-      `;
-      block.appendChild(addDiv);
-      container.appendChild(block);
-
-      // Insert other selectors from CSV columns
       Object.entries(vars).forEach(([hdr, opts]) => {
-        if (hdr === 'params') return;
         const id = normalizeId(hdr);
-        const wrapper = document.createElement('div');
-        wrapper.className = 'selector-block';
-        const lbl = document.createElement('label'); lbl.htmlFor = id; lbl.innerText = hdr;
-        const sel = document.createElement('select'); sel.id = id; sel.multiple = true;
-        opts.forEach(v => { const o = document.createElement('option'); o.value = v; o.innerText = v; sel.appendChild(o); });
-        const addOptDiv = document.createElement('div'); addOptDiv.className = 'add-option';
+        const block = document.createElement('div');
+        block.className = 'selector-block';
+        // label
+        const lbl = document.createElement('label');
+        lbl.htmlFor = id;
+        lbl.innerText = hdr;
+        block.appendChild(lbl);
+        // select
+        const sel = document.createElement('select');
+        sel.id = id;
+        sel.multiple = true;
+        opts.forEach(v => {
+          const o = document.createElement('option');
+          o.value = v;
+          o.innerText = v;
+          sel.appendChild(o);
+        });
+        block.appendChild(sel);
+        // add new option
+        const addOptDiv = document.createElement('div');
+        addOptDiv.className = 'add-option';
         addOptDiv.innerHTML = `
           <input type="text" id="new_${id}" placeholder="Agregar opción a ${hdr}...">
           <button type="button" onclick="addOption('${id}', document.getElementById('new_${id}').value)">+ Añadir</button>
         `;
-        wrapper.appendChild(lbl);
-        wrapper.appendChild(sel);
-        wrapper.appendChild(addOptDiv);
-        container.appendChild(wrapper);
+        block.appendChild(addOptDiv);
+        container.appendChild(block);
       });
     }
 
@@ -131,14 +111,19 @@
       if (!value) return;
       fetch(SHEET_URL_ADD_OPTION, {
         method: 'POST',
-        body: JSON.stringify({ header: selectorId, value }),
-        headers: { 'Content-Type': 'application/json' }
-      }).then(r => r.json()).then(() => {
-        const sel = document.getElementById(selectorId);
-        const opt = document.createElement('option'); opt.value = value; opt.innerText = value;
-        sel.appendChild(opt);
-        document.getElementById('new_' + selectorId).value = '';
-      }).catch(console.error);
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ header: selectorId, value })
+      })
+        .then(res => res.json())
+        .then(() => {
+          const sel = document.getElementById(selectorId);
+          const opt = document.createElement('option');
+          opt.value = value;
+          opt.innerText = value;
+          sel.appendChild(opt);
+          document.getElementById('new_' + selectorId).value = '';
+        })
+        .catch(console.error);
     }
 
     function buildPrompt() {
@@ -147,11 +132,12 @@
         const txt = document.getElementById(id).value.trim();
         if (txt) txt.split(/[\s,]+/).filter(u => u).forEach(u => parts.push(u));
       });
-      document.querySelectorAll('#params, #selectors select').forEach(sel => {
+      document.querySelectorAll('#selectors select').forEach(sel => {
         const v = getSelected(sel.id, ' ');
         if (v) parts.push(v);
       });
-      const mood = document.getElementById('moodboard').value.trim(); if (mood) parts.push(mood);
+      const mood = document.getElementById('moodboard').value.trim();
+      if (mood) parts.push(mood);
       document.getElementById('output').value = parts.join(' ');
     }
 
@@ -160,8 +146,8 @@
       navigator.clipboard.writeText(promptText).catch(console.error);
       fetch(SHEET_URL_SAVE_PROMPT, {
         method: 'POST',
-        body: JSON.stringify({ prompt: promptText }),
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText })
       }).catch(console.error);
       alert('✅ Prompt copiado y guardado');
     }
@@ -169,8 +155,6 @@
     ['iw','sref','oref'].forEach(setupPreview);
 
     window.addEventListener('DOMContentLoaded', () => {
-      // URL al CSV publicado de Google Sheets (Hoja "Opciones")
-      // URL al CSV publicado de Google Sheets (Hoja "Opciones")
       const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv';
       Papa.parse(CSV_URL, {
         download: true,
@@ -178,8 +162,30 @@
         skipEmptyLines: true,
         transformHeader: h => h.replace(/"/g, '').trim(),
         transform: v => v.replace(/"/g, '').trim(),
-        complete: ({ data }) => {
-          if (!data.length) return alert('CSV malformado o ruta incorrecta');
+        complete: ({ data, meta }) => {
+          console.log('CSV headers:', meta.fields);
+          console.log('CSV rows:', data);
+          if (!data.length) {
+            alert('CSV malformado o ruta incorrecta');
+            return;
+          }
+          const vars = {};
+          // Inicializar arrays para cada header encontrado
+          meta.fields.forEach(hdr => vars[hdr] = []);
+          data.forEach(row => {
+            meta.fields.forEach(hdr => {
+              const v = row[hdr];
+              if (v && !vars[hdr].includes(v)) vars[hdr].push(v);
+            });
+          });
+          console.log('Parsed selectors:', vars);
+          buildSelectors(vars);
+        },
+        error: err => {
+          console.error('Papa.parse error:', err);
+          alert('Error cargando CSV, revisa consola');
+        }
+      });
           const vars = {};
           Object.keys(data[0]).forEach(h => vars[h] = []);
           data.forEach(row => Object.entries(row).forEach(([h, v]) => {
@@ -187,7 +193,10 @@
           }));
           buildSelectors(vars);
         },
-        error: err => { console.error(err); alert('Error cargando CSV'); }
+        error: err => {
+          console.error(err);
+          alert('Error cargando CSV');
+        }
       });
     });
   </script>
