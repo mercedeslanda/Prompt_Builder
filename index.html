@@ -27,7 +27,7 @@
       display: block;
       font-weight: bold;
       text-transform: uppercase;
-      margin: 20px 0 4px;  
+      margin: 20px 0 4px;
     }
     #selectors select, #params {
       height: 200px;
@@ -121,99 +121,24 @@
   </select>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
-  <button onclick="copyPrompt()">📋 Copiar Prompt</button>
+  <button onclick="copyPromptAndSaveToSeparateSheet()">📋 Copiar Prompt</button>
 
   <h2 id="output">Prompt generado aparecerá aquí…</h2>
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
-    Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv", {
-      download: true,
-      header: true,
-      complete: function(results) {
-        const headers = results.meta.fields;
-        const grouped = {};
-        headers.forEach(h => grouped[h] = []);
-        results.data.forEach(row => {
-          headers.forEach(h => {
-            if (row[h] && !grouped[h].includes(row[h])) grouped[h].push(row[h]);
-          });
-        });
-
-        const container = document.getElementById('selectors');
-        container.innerHTML = '';
-        headers.forEach(h => {
-          const id = h.replace(/\s+/g, '_').toLowerCase();
-          container.innerHTML += `
-            <label for="${id}">${h}</label>
-            <select id="${id}" multiple>
-              ${grouped[h].map(v => `<option value="${v}">${v}</option>`).join('')}
-            </select>
-            <button class="add-btn" onclick="showInput('${id}', '${h}')">(quiero otra opción)</button>
-            <div class="new-option-input-wrapper" id="wrapper_${id}">
-              <input type="text" id="new_${id}" placeholder="Escribe una nueva opción">
-              <button onclick="addOption('${id}', '${h}')">Agregar</button>
-            </div>
-          `;
-        });
-      }
-    });
-
-    function showInput(id) {
-      document.getElementById(`wrapper_${id}`).style.display = 'block';
-    }
-
-    function addOption(id, header) {
-      const val = document.getElementById(`new_${id}`).value.trim();
-      if (!val) return;
-      const sel = document.getElementById(id);
-      const opt = new Option(val, val, true, true);
-      sel.add(opt);
-
-      fetch("https://script.google.com/macros/s/AKfycbxwMHRgFpka3zZJhxRceIW6ycxCK4cCDD36qCTPya3GWLVU3mJ2XH1-A3xHFPNCRfI4/exec", {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ column: header, value: val })
+    function copyPromptAndSaveToSeparateSheet() {
+      const prompt = document.getElementById('outputText').value;
+      navigator.clipboard.writeText(prompt);
+      fetch('https://script.google.com/macros/s/AKfycbxwMHRgFpka3zZJhxRceIW6ycxCK4cCDD36qCTPya3GWLVU3mJ2XH1-A3xHFPNCRfI4/exec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sheet: 'PromptsGenerados',
+          prompt: prompt,
+          timestamp: new Date().toISOString()
+        })
       });
-
-      document.getElementById(`new_${id}`).value = '';
-    }
-
-    function buildPrompt() {
-      let prompt = '';
-      const iw = document.getElementById('iw').value.trim();
-      if (iw) prompt += `${iw} `;
-
-      document.querySelectorAll('#selectors select').forEach(sel => {
-        const vals = Array.from(sel.selectedOptions).map(o => o.value).join(' ');
-        if (vals) prompt += ` ${vals}`;
-      });
-
-      const sref = document.getElementById('sref').value.trim();
-      if (sref) prompt += ` --sref ${sref} --sw 75`;
-
-      const oref = document.getElementById('oref').value.trim();
-      if (oref) prompt += ` --oref ${oref} --ow 50`;
-
-      const mood = document.getElementById('moodboard').value.trim();
-      if (mood) prompt += ` ${mood}`;
-
-      const params = Array.from(document.getElementById('params').selectedOptions).map(o => o.value).join(' ');
-      if (params) prompt += ` ${params}`;
-
-      document.getElementById('output').textContent = prompt;
-      document.getElementById('outputText').value = prompt;
-    }
-
-    function copyPrompt() {
-      const text = document.getElementById('outputText');
-      text.select();
-      text.setSelectionRange(0, 99999);
-      document.execCommand('copy');
-      alert('Prompt copiado al portapapeles');
     }
   </script>
 </body>
