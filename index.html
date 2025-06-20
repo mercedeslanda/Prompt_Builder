@@ -2,12 +2,16 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta property="og:title" content="Constructora de Prompts" />
-  <meta property="og:description" content="Genera tus prompts visuales de arquitectura especulativa desde urbanalitica.com" />
+  
+  <?php if ( is_page('constructora-de-prompts') ) : ?>
+  <meta property="og:title" content="Generador de Prompts para Imágenes" />
+  <meta property="og:description" content="Construye tus prompts para crear imágenes." />
   <meta property="og:image" content="https://urbanalitica.com/wp-content/uploads/2024/05/prompt-cover.jpg" />
-  <meta property="og:url" content="https://urbanalitica.com/constructora-de-prompts/" />
+  <meta property="og:url" content="<?php echo get_permalink(); ?>" />
   <meta property="og:type" content="website" />
-  <title>Generador de Prompts Urbanalítica</title>
+  <?php endif; ?>
+  
+  <title>Constructora de Prompts - Urbanalítica</title>
   <style>
     body { font-family: sans-serif; margin: 40px; max-width: 800px; color: #ff00ff; }
     select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 8px; font-size: 1rem; border: 1px solid #ccc; box-sizing: border-box; }
@@ -24,7 +28,9 @@
 </head>
 <body>
   <p>Generador de Prompts – URBANALÍTICA</p>
-  <p>Selecciona múltiples opciones por categoría (Ctrl/Cmd + clic):</p>
+  <p>Selecciona dentro de las categorías mostradas, una o varias opciones. No tienes que usar todas las categorías. Pega links de imágenes en Imagen Guía, Estilo y OmniReference (oref) para controlar el estilo de tu imagen en MJ. Copia el resultado a Midjourney o ChatGpt. Apóyate en la constructora para lograr series consistentes. </p>
+  <p>Para seleccionar múltiples opciones por categoría usa (Ctrl/Cmd + clic):</p>
+  <p>Si no encuentras tu variable, puedes agregarla. Se borrarán tus nuevas variables cuando cierres el tab o refresques la página.</p>
 
   <label for="iw">🖼️ Imagen guía (<code>--iw</code>)</label>
   <input type="text" id="iw" placeholder="Pega enlace de imagen">
@@ -46,6 +52,9 @@
 
   <label for="moodboard">🎭 Moodboards (<code>--p</code>)</label>
   <input type="text" id="moodboard" placeholder="--p <ID moodboard>">
+
+  <label for="seed">🌱 Seed (<code>--s</code>)</label>
+  <input type="text" id="seed" placeholder="--s <ID seed>">
 
   <hr>
 
@@ -206,6 +215,9 @@ setTimeout(() => confirm.remove(), 5000);
 
       const mood = document.getElementById('moodboard').value.trim();
       if (mood) prompt += ` ${mood}`;
+
+      const seed = document.getElementById('seed').value.trim();
+      if (seed) prompt += ` ${seed}`;
 
       const params = getSelected('params',' ');
       if (params) prompt += ` ${params}`;
