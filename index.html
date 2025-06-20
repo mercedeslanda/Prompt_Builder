@@ -57,7 +57,7 @@
     h2#output {
       margin-top: 30px;
       font-weight: bold;
-      background: #f8f8f8;
+      background: transparent;
       padding: 20px;
       border: 1px solid #ccc;
       font-size: 1.2rem;
@@ -127,6 +127,32 @@
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
+    // Cargar datos desde Google Sheets vía Apps Script
+    fetch("https://script.google.com/macros/s/AKfycbwk9c4zqjlkl23fJkhvzHaTFAbB7uKPhgYVSDPRpBOk5oo5bkV1iKKGn2_kd-7Hc6cNKw/exec")
+      .then(res => res.json())
+      .then(data => {
+        const headers = Object.keys(data[0]);
+        const grouped = {};
+        headers.forEach(h => grouped[h] = []);
+        data.forEach(row => {
+          headers.forEach(h => {
+            if (row[h] && !grouped[h].includes(row[h])) grouped[h].push(row[h]);
+          });
+        });
+
+        const container = document.getElementById('selectors');
+        container.innerHTML = '';
+        headers.forEach(h => {
+          const id = h.replace(/\s+/g, '_').toLowerCase();
+          container.innerHTML += `
+            <label for="${id}">${h}</label>
+            <select id="${id}" multiple>
+              ${grouped[h].map(v => `<option value="${v}">${v}</option>`).join('')}
+            </select>
+          `;
+        });
+      });
+
     function buildPrompt() {
       let prompt = '';
       const iw = document.getElementById('iw').value.trim();
