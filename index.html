@@ -1,10 +1,11 @@
+<!-- Generador de Prompts – URBANALÍTICA (HTML + JavaScript corregido con nueva URL) -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <title>Generador de Prompts Urbanalítica</title>
   <style>
-    body { font-family: sans-serif; margin: 40px; max-width: 800px; color: #ff00ff; }
+    body { font-family: sans-serif; margin: 40px; max-width: 800px; color: #333; }
     select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 8px; font-size: 1rem; border: 1px solid #ccc; box-sizing: border-box; }
     #selectors label, label[for="params"] { display: block; font-weight: bold; text-transform: uppercase; margin: 20px 0 4px; }
     #selectors select, #params { height: 200px; overflow-y: auto; }
@@ -61,14 +62,17 @@
   </select>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
-  <button onclick="copyPrompt()">📋 Copiar Prompt</button>
+  <button onclick="copyPrompt()">📋 Copiar & Guardar Prompt</button>
 
   <h2 id="output">Prompt generado aparecerá aquí…</h2>
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
+    // Actualiza con la nueva URL de tu Apps Script
+    const SCRIPT_URL = "https://script.google.com/a/macros/urbanalitica.com/s/AKfycbzWAOIa3EN9Zy_f-ISlS7j1cZ2wG49g49rqiMggGtdvYQBr7IOaKxT7KQi360lepxdyGw/exec";
+
     function normalizeId(text) {
-      return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
+      return text.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
     }
 
     ['iw','sref','oref'].forEach(id => {
@@ -102,31 +106,37 @@
 
     function handleNewOption(selectorId, inputEl) {
       const val = inputEl.value.trim();
+      const category = inputEl.dataset.category;
       if (!val) return;
       const select = document.getElementById(selectorId);
-      const datalist = document.getElementById(`list-${selectorId}`);
       const exists = Array.from(select.options).some(opt => opt.value === val);
       if (!exists) {
         const opt = new Option(val, val, true, true);
         select.add(opt);
-        datalist.insertAdjacentHTML('beforeend', `<option value="${val}">`);
+        sendNewOptionToSheet(category, val);
       } else {
-        Array.from(select.options).forEach(opt => {
-          if (opt.value === val) opt.selected = true;
-        });
+        Array.from(select.options).forEach(opt => { if (opt.value === val) opt.selected = true; });
       }
       inputEl.closest('.new-option-input-wrapper').style.display = 'none';
       inputEl.closest('.selector-container').querySelector('.add-btn').style.display = 'inline-block';
       inputEl.value = '';
     }
 
+    function sendNewOptionToSheet(column, value) {
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ column, value }),
+        headers: { 'Content-Type': 'application/json' }
+      }).catch(err => console.error('Error guardando opción:', err));
+    }
+
+    // Carga inicial de variables desde el CSV
     Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?output=csv', {
       download: true, header: true, skipEmptyLines: true,
       transformHeader: h => h.replace(/"/g,'').trim(),
       transform: v => v.replace(/"/g,'').trim(),
       complete: ({ data }) => {
-        const vars = {};
-        Object.keys(data[0]||{}).forEach(h => vars[h] = []);
+        const vars = {}; Object.keys(data[0]||{}).forEach(h => vars[h] = []);
         data.forEach(r => Object.entries(r).forEach(([h,v]) => v && !vars[h].includes(v) && vars[h].push(v)));
         buildSelectors(vars);
       }
@@ -137,84 +147,39 @@
       return sel ? Array.from(sel.selectedOptions).map(o=>o.value).join(sep) : '';
     }
 
-    function getNewOptions() {
-      const inputs = document.querySelectorAll('.new-option-input');
-      const additions = {};
-      inputs.forEach(inp => {
-        const val = inp.value.trim();
-        const cat = inp.dataset.category;
-        if (val) additions[cat] = val;
-      });
-      return additions;
-    }
-
-    function sendPromptToSheet(prompt, newOptions) {
-  fetch("https://script.google.com/macros/s/AKfycbyfDJw9dokR03d23JN0dlbqVzwV01g0t6ONnBceJWT6ZB4SBgTfVaH19mKDhKeF46AllQ/exec", {
-    method: "POST",
-    body: JSON.stringify({ prompt, newOptions }),
-    headers: { "Content-Type": "application/json" }
-  })
-  .then(r => r.text())
-  .then(msg => {
-    console.log("Datos enviados a Sheets:", msg);
-    const confirm = document.createElement('div');
-confirm.textContent = '✅ Prompt guardado con éxito';
-confirm.style.background = 'transparent';
-confirm.style.display = 'inline-block';
-confirm.style.padding = '4px 8px';
-confirm.style.borderRadius = '4px';
-confirm.style.backdropFilter = 'blur(2px)';
-confirm.style.border = 'none';
-confirm.style.padding = '0';
-confirm.style.margin = '12px 0 0 0';
-confirm.style.color = '#ffffff';
-confirm.style.fontWeight = 'bold';
-confirm.style.maxWidth = '100%';
-confirm.style.wordWrap = 'break-word';
-confirm.style.textAlign = 'left';
-confirm.style.fontSize = '1rem';
-confirm.style.pointerEvents = 'none';
-confirm.style.boxShadow = 'none';
-confirm.style.position = 'relative';
-confirm.style.zIndex = '1';
-document.getElementById('selectors').appendChild(confirm);
-setTimeout(() => confirm.remove(), 5000);
-  })
-  .catch(err => console.error("Error al enviar:", err));
-    }
-
     function buildPrompt() {
       let prompt = '';
       const iw = document.getElementById('iw').value.trim();
       if (iw) prompt += `${iw} `;
-
       document.querySelectorAll('#selectors select').forEach(sel => {
         const vals = getSelected(sel.id);
         if (vals) prompt += ` ${vals}`;
       });
-
       const sref = document.getElementById('sref').value.trim();
       if (sref) prompt += ` --sref ${sref} --sw 75`;
-
       const oref = document.getElementById('oref').value.trim();
       if (oref) prompt += ` --oref ${oref} --ow 50`;
-
       const mood = document.getElementById('moodboard').value.trim();
       if (mood) prompt += ` ${mood}`;
-
       const params = getSelected('params',' ');
       if (params) prompt += ` ${params}`;
-
       document.getElementById('output').textContent = prompt;
       document.getElementById('outputText').value = prompt;
-
-      const newOptions = getNewOptions();
-      sendPromptToSheet(prompt, newOptions);
     }
 
     function copyPrompt() {
-      navigator.clipboard.writeText(document.getElementById('outputText').value);
+      const prompt = document.getElementById('outputText').value;
+      navigator.clipboard.writeText(prompt);
+      const timestamp = new Date().toISOString();
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ prompt, timestamp }),
+        headers: { 'Content-Type': 'application/json' }
+      }).catch(err => console.error('Error guardando prompt:', err));
     }
   </script>
 </body>
 </html>
+
+
+
