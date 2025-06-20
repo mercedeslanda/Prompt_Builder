@@ -126,20 +126,124 @@
   <h2 id="output">Prompt generado aparecerá aquí…</h2>
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
-  <script>
-    function copyPromptAndSaveToSeparateSheet() {
-      const prompt = document.getElementById('outputText').value;
-      navigator.clipboard.writeText(prompt);
-      fetch('https://script.google.com/macros/s/AKfycbxwMHRgFpka3zZJhxRceIW6ycxCK4cCDD36qCTPya3GWLVU3mJ2XH1-A3xHFPNCRfI4/exec', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sheet: 'PromptsGenerados',
-          prompt: prompt,
-          timestamp: new Date().toISOString()
-        })
+<script>
+  const scriptURL = 'https://script.google.com/macros/s/AKfycbxwMHRgFpka3zZJhxRceIW6ycxCK4cCDD36qCTPya3GWLVU3mJ2XH1-A3xHFPNCRfI4/exec';
+
+  Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv', {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    transformHeader: h => h.replace(/"/g, '').trim(),
+    transform: v => v.replace(/"/g, '').trim(),
+    complete: ({ data }) => {
+      const vars = {};
+      Object.keys(data[0] || {}).forEach(h => vars[h] = []);
+      data.forEach(r => {
+        Object.entries(r).forEach(([h, v]) => {
+          if (v && !vars[h].includes(v)) vars[h].push(v);
+        });
       });
+      buildSelectors(vars);
     }
-  </script>
+  });
+
+  function buildSelectors(vars) {
+    const container = document.getElementById('selectors');
+    container.innerHTML = '';
+    Object.entries(vars).forEach(([key, values]) => {
+      const label = document.createElement('label');
+      label.textContent = key;
+      container.appendChild(label);
+
+      const select = document.createElement('select');
+      select.setAttribute('multiple', true);
+      select.setAttribute('data-column', key);
+      values.forEach(value => {
+        const option = document.createElement('option');
+        option.textContent = value;
+        select.appendChild(option);
+      });
+      container.appendChild(select);
+
+      // Botón "Quiero otra opción"
+      const addBtn = document.createElement('button');
+      addBtn.textContent = 'Quiero otra opción';
+      addBtn.className = 'add-btn';
+      addBtn.onclick = () => {
+        inputWrapper.style.display = 'block';
+        input.focus();
+      };
+      container.appendChild(addBtn);
+
+      const inputWrapper = document.createElement('div');
+      inputWrapper.className = 'new-option-input-wrapper';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = `Otra opción para ${key}`;
+      input.addEventListener('change', () => {
+        const newValue = input.value.trim();
+        if (newValue) {
+          // Agrega al select
+          const newOption = document.createElement('option');
+          newOption.textContent = newValue;
+          newOption.selected = true;
+          select.appendChild(newOption);
+
+          // Escribe en Google Sheets
+          fetch(scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ column: key, value: newValue })
+          });
+
+          // Limpia
+          input.value = '';
+          inputWrapper.style.display = 'none';
+        }
+      });
+      inputWrapper.appendChild(input);
+      container.appendChild(inputWrapper);
+    });
+  }
+
+  function buildPrompt() {
+    const selects = document.querySelectorAll('#selectors select');
+    const selections = [];
+    selects.forEach(sel => {
+      const selected = Array.from(sel.selectedOptions).map(o => o.textContent);
+      if (selected.length) selections.push(...selected);
+    });
+
+    const iw = document.getElementById('iw').value.trim();
+    const sref = document.getElementById('sref').value.trim();
+    const oref = document.getElementById('oref').value.trim();
+    const mood = document.getElementById('moodboard').value.trim();
+    const params = Array.from(document.getElementById('params').selectedOptions).map(o => o.value);
+
+    let prompt = selections.join(', ');
+    if (iw) prompt += ` --iw ${iw}`;
+    if (sref) prompt += ` --sref ${sref}`;
+    if (oref) prompt += ` --oref ${oref}`;
+    if (mood) prompt += ` --p ${mood}`;
+    if (params.length) prompt += ' ' + params.join(' ');
+
+    document.getElementById('output').textContent = prompt;
+    document.getElementById('outputText').value = prompt;
+  }
+
+  function copyPromptAndSaveToSeparateSheet() {
+    const prompt = document.getElementById('outputText').value;
+    navigator.clipboard.writeText(prompt);
+    fetch(scriptURL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: prompt,
+        timestamp: new Date().toISOString()
+      })
+    });
+  }
+</script>
+
 </body>
 </html>
