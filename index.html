@@ -4,16 +4,76 @@
   <meta charset="UTF-8">
   <title>Generador de Prompts Urbanalítica</title>
   <style>
-    body { font-family: sans-serif; margin: 40px; max-width: 800px; color: #ff00ff; }
-    select, input[type="text"], textarea { width: 100%; margin-bottom: 12px; padding: 8px; font-size: 1rem; border: 1px solid #ccc; box-sizing: border-box; }
-    #selectors label, label[for="params"] { display: block; font-weight: bold; text-transform: uppercase; margin: 20px 0 4px; }
-    #selectors select, #params { height: 200px; overflow-y: auto; }
-    button { margin-top: 12px; padding: 10px 16px; font-size: 1rem; cursor: pointer; }
-    .add-btn { display: inline-block; font-size: 0.85rem; margin-bottom: 8px; color: #0066cc; background: none; border: none; text-decoration: underline; cursor: pointer; }
-    .new-option-input-wrapper { display: none; margin-top: 4px; }
-    h2#output { margin-top: 30px; font-weight: bold; background: #f8f8f8; padding: 20px; border: 1px solid #ccc; font-size: 1.2rem; white-space: pre-wrap; }
-    .preview-container img { max-width: 120px; margin: 4px; display: inline-block; }
-    hr { margin: 24px 0; border: none; border-top: 1px solid #eee; }
+    body {
+      font-family: sans-serif;
+      margin: 40px auto;
+      max-width: 800px;
+      text-align: center;
+      color: #ff00ff;
+    }
+    select, input[type="text"], textarea {
+      display: block;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+      margin-bottom: 12px;
+      padding: 8px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      color: #000;
+    }
+    #selectors label, label[for="params"] {
+      display: block;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 20px 0 4px;  
+    }
+    #selectors select, #params {
+      height: 200px;
+      overflow-y: auto;
+      background-color: white;
+    }
+    button {
+      margin-top: 12px;
+      padding: 10px 16px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .add-btn {
+      display: inline-block;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+      color: #0066cc;
+      background: none;
+      border: none;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .new-option-input-wrapper {
+      display: none;
+      margin-top: 4px;
+    }
+    h2#output {
+      margin-top: 30px;
+      font-weight: bold;
+      background: transparent;
+      padding: 20px;
+      border: 1px solid #ccc;
+      font-size: 1.2rem;
+      white-space: pre-wrap;
+      color: #ff00ff;
+    }
+    .preview-container img {
+      max-width: 120px;
+      margin: 4px;
+      display: inline-block;
+    }
+    hr {
+      margin: 24px 0;
+      border: none;
+      border-top: 1px solid #eee;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 </head>
@@ -67,120 +127,59 @@
   <textarea id="outputText" rows="4" placeholder="Aquí aparece tu prompt..."></textarea>
 
   <script>
-    function normalizeId(text) {
-      return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '').toLowerCase();
-    }
+    Papa.parse("https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv", {
+      download: true,
+      header: true,
+      complete: function(results) {
+        const headers = results.meta.fields;
+        const grouped = {};
+        headers.forEach(h => grouped[h] = []);
+        results.data.forEach(row => {
+          headers.forEach(h => {
+            if (row[h] && !grouped[h].includes(row[h])) grouped[h].push(row[h]);
+          });
+        });
 
-    ['iw','sref','oref'].forEach(id => {
-      const inp = document.getElementById(id);
-      const container = document.getElementById('preview_' + id);
-      inp.addEventListener('input', () => {
-        const url = inp.value.trim();
-        container.innerHTML = url ? `<img src="${url}" onerror="this.remove()">` : '';
-      });
-    });
-
-    function buildSelectors(vars) {
-      const c = document.getElementById('selectors'); c.innerHTML = '';
-      Object.entries(vars).forEach(([hdr, opts]) => {
-        const id = normalizeId(hdr);
-        c.insertAdjacentHTML('beforeend', `
-          <label for="${id}">${hdr}</label>
-          <div class="selector-container">
-            <select id="${id}" multiple></select>
-            <button class="add-btn" onclick="this.nextElementSibling.style.display='block'; this.style.display='none';">(quiero otra opción)</button>
-            <div class="new-option-input-wrapper">
-              <input type="text" class="new-option-input" placeholder="Agregar nueva opción..." data-category="${hdr}" list="list-${id}" onblur="handleNewOption('${id}', this)">
+        const container = document.getElementById('selectors');
+        container.innerHTML = '';
+        headers.forEach(h => {
+          const id = h.replace(/\s+/g, '_').toLowerCase();
+          container.innerHTML += `
+            <label for="${id}">${h}</label>
+            <select id="${id}" multiple>
+              ${grouped[h].map(v => `<option value="${v}">${v}</option>`).join('')}
+            </select>
+            <button class="add-btn" onclick="showInput('${id}', '${h}')">(quiero otra opción)</button>
+            <div class="new-option-input-wrapper" id="wrapper_${id}">
+              <input type="text" id="new_${id}" placeholder="Escribe una nueva opción">
+              <button onclick="addOption('${id}', '${h}')">Agregar</button>
             </div>
-            <datalist id="list-${id}">${opts.map(v => `<option value="${v}">`).join('')}</datalist>
-          </div>
-        `);
-        const sel = document.getElementById(id);
-        opts.forEach(v => sel.insertAdjacentHTML('beforeend', `<option value="${v}">${v}</option>`));
-      });
-    }
-
-    function handleNewOption(selectorId, inputEl) {
-      const val = inputEl.value.trim();
-      if (!val) return;
-      const select = document.getElementById(selectorId);
-      const datalist = document.getElementById(`list-${selectorId}`);
-      const exists = Array.from(select.options).some(opt => opt.value === val);
-      if (!exists) {
-        const opt = new Option(val, val, true, true);
-        select.add(opt);
-        datalist.insertAdjacentHTML('beforeend', `<option value="${val}">`);
-      } else {
-        Array.from(select.options).forEach(opt => {
-          if (opt.value === val) opt.selected = true;
+          `;
         });
       }
-      inputEl.closest('.new-option-input-wrapper').style.display = 'none';
-      inputEl.closest('.selector-container').querySelector('.add-btn').style.display = 'inline-block';
-      inputEl.value = '';
-    }
-
-    Papa.parse('https://docs.google.com/spreadsheets/d/e/2PACX-1vR6s7kqLZw_q-qATqMs1-5oKdDddH2IJ-oXWNSVuT9XUGSQjkwNWPYx-XLv8O1FcVEiEr28ifZ-WDGM/pub?gid=0&single=true&output=csv', {
-      download: true, header: true, skipEmptyLines: true,
-      transformHeader: h => h.replace(/"/g,'').trim(),
-      transform: v => v.replace(/"/g,'').trim(),
-      complete: ({ data }) => {
-        const vars = {};
-        Object.keys(data[0]||{}).forEach(h => vars[h] = []);
-        data.forEach(r => Object.entries(r).forEach(([h,v]) => v && !vars[h].includes(v) && vars[h].push(v)));
-        buildSelectors(vars);
-      }
     });
 
-    function getSelected(id, sep=' ') {
+    function showInput(id) {
+      document.getElementById(`wrapper_${id}`).style.display = 'block';
+    }
+
+    function addOption(id, header) {
+      const val = document.getElementById(`new_${id}`).value.trim();
+      if (!val) return;
       const sel = document.getElementById(id);
-      return sel ? Array.from(sel.selectedOptions).map(o=>o.value).join(sep) : '';
-    }
+      const opt = new Option(val, val, true, true);
+      sel.add(opt);
 
-    function getNewOptions() {
-      const inputs = document.querySelectorAll('.new-option-input');
-      const additions = {};
-      inputs.forEach(inp => {
-        const val = inp.value.trim();
-        const cat = inp.dataset.category;
-        if (val) additions[cat] = val;
+      fetch("https://script.google.com/macros/s/AKfycbxwMHRgFpka3zZJhxRceIW6ycxCK4cCDD36qCTPya3GWLVU3mJ2XH1-A3xHFPNCRfI4/exec", {
+        method: "POST",
+        mode: "no-cors",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ column: header, value: val })
       });
-      return additions;
-    }
 
-    function sendPromptToSheet(prompt, newOptions) {
-  fetch("https://script.google.com/a/macros/urbanalitica.com/s/AKfycbwk9c4zqjlkl23fJkhvzHaTFAbB7uKPhgYVSDPRpBOk5oo5bkV1iKKGn2_kd-7Hc6cNKw/exec", {
-    method: "POST",
-    body: JSON.stringify({ prompt, newOptions }),
-    headers: { "Content-Type": "application/json" }
-  })
-  .then(r => r.text())
-  .then(msg => {
-    console.log("Datos enviados a Sheets:", msg);
-    const confirm = document.createElement('div');
-confirm.textContent = '✅ Prompt guardado con éxito';
-confirm.style.background = 'transparent';
-confirm.style.display = 'inline-block';
-confirm.style.padding = '4px 8px';
-confirm.style.borderRadius = '4px';
-confirm.style.backdropFilter = 'blur(2px)';
-confirm.style.border = 'none';
-confirm.style.padding = '0';
-confirm.style.margin = '12px 0 0 0';
-confirm.style.color = '#ffffff';
-confirm.style.fontWeight = 'bold';
-confirm.style.maxWidth = '100%';
-confirm.style.wordWrap = 'break-word';
-confirm.style.textAlign = 'left';
-confirm.style.fontSize = '1rem';
-confirm.style.pointerEvents = 'none';
-confirm.style.boxShadow = 'none';
-confirm.style.position = 'relative';
-confirm.style.zIndex = '1';
-document.getElementById('selectors').appendChild(confirm);
-setTimeout(() => confirm.remove(), 5000);
-  })
-  .catch(err => console.error("Error al enviar:", err));
+      document.getElementById(`new_${id}`).value = '';
     }
 
     function buildPrompt() {
@@ -189,7 +188,7 @@ setTimeout(() => confirm.remove(), 5000);
       if (iw) prompt += `${iw} `;
 
       document.querySelectorAll('#selectors select').forEach(sel => {
-        const vals = getSelected(sel.id);
+        const vals = Array.from(sel.selectedOptions).map(o => o.value).join(' ');
         if (vals) prompt += ` ${vals}`;
       });
 
@@ -202,18 +201,19 @@ setTimeout(() => confirm.remove(), 5000);
       const mood = document.getElementById('moodboard').value.trim();
       if (mood) prompt += ` ${mood}`;
 
-      const params = getSelected('params',' ');
+      const params = Array.from(document.getElementById('params').selectedOptions).map(o => o.value).join(' ');
       if (params) prompt += ` ${params}`;
 
       document.getElementById('output').textContent = prompt;
       document.getElementById('outputText').value = prompt;
-
-      const newOptions = getNewOptions();
-      sendPromptToSheet(prompt, newOptions);
     }
 
     function copyPrompt() {
-      navigator.clipboard.writeText(document.getElementById('outputText').value);
+      const text = document.getElementById('outputText');
+      text.select();
+      text.setSelectionRange(0, 99999);
+      document.execCommand('copy');
+      alert('Prompt copiado al portapapeles');
     }
   </script>
 </body>
