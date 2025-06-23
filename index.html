@@ -28,7 +28,7 @@
 </head>
 <body>
   <p>Generador de Prompts – URBANALÍTICA</p>
-  <p>Selecciona dentro de las categorías mostradas, una o varias opciones. No tienes que usar todas las categorías. Pega links de imágenes en Imagen Guía, Estilo y OmniReference (oref) para controlar el estilo de tu imagen en MJ. Copia el resultado a Midjourney o ChatGpt. Apóyate en la constructora para lograr series consistentes. </p>
+  <p>Selecciona dentro de las categorías mostradas. No tienes que usar todas las categorías. </p>
   <p>Para seleccionar múltiples opciones por categoría usa (Ctrl/Cmd + clic):</p>
   <p>Si no encuentras tu variable, puedes agregarla. Se borrarán tus nuevas variables cuando cierres el tab o refresques la página.</p>
 
@@ -61,16 +61,14 @@
   <label for="params">⚙️ Parámetros Midjourney</label>
   <select id="params" multiple>
     <option value="--ar 16:9">--ar 16:9 (aspect ratio horizontal)</option>
+    <option value="--ar 9:16">--ar 16:9 (aspect ratio vertical)</option>
     <option value="--style raw">--style raw (sin extras)</option>
+    <option value="--stylize 10">--stylize 10 (estilización baja)</option>
     <option value="--stylize 550">--stylize 550 (estilización media)</option>
+    <option value="--stylize 1000">--stylize 1000 (estilización alta)</option>
     <option value="--repeat 1">--repeat 1 (ahorra tiempo)</option>
     <option value="--weird 0">--weird 0 (más serio)</option>
     <option value="--weird 1000">--weird 1000 (más extraño)</option>
-    <option value="--chaos 50">--chaos 50 (varianza en iteración)</option>
-    <option value="--tile">--tile (mosaico)</option>
-    <option value="--stop 100">--stop 100 (detener antes)</option>
-    <option value="--quality 2">--quality 2 (calidad alta)</option>
-    <option value="--hd">--hd (alta resolución)</option>
   </select>
 
   <button onclick="buildPrompt()">🔁 Generar Prompt</button>
